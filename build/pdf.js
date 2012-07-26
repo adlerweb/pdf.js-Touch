@@ -7,7 +7,7 @@ var PDFJS = {};
   // Use strict in our context only - users might not want it
   'use strict';
 
-  PDFJS.build = 'b3a603c';
+  PDFJS.build = '09acd7b';
 
   // Files are inserted below - see Makefile
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
@@ -630,7 +630,6 @@ function combineUrl(baseUrl, url) {
     return baseUrl.substring(0, prefixLength + 1) + url;
   }
 }
-PDFJS.combineUrl = combineUrl;
 
 // In a well-formed PDF, |cond| holds.  If it doesn't, subsequent
 // behavior is undefined.
@@ -1223,11 +1222,21 @@ PDFJS.getDocument = function getDocument(source) {
   if (!source.url && !source.data)
     error('Invalid parameter array, need either .data or .url');
 
+  // copy/use all keys as is except 'url' -- full path is required
+  var params = {};
+  for (var key in source) {
+    if (key === 'url' && typeof window !== 'undefined') {
+      params[key] = combineUrl(window.location.href, source[key]);
+      continue;
+    }
+    params[key] = source[key];
+  }
+
   workerInitializedPromise = new PDFJS.Promise();
   workerReadyPromise = new PDFJS.Promise();
   transport = new WorkerTransport(workerInitializedPromise, workerReadyPromise);
   workerInitializedPromise.then(function transportInitialized() {
-    transport.fetchDocument(source);
+    transport.fetchDocument(params);
   });
   return workerReadyPromise;
 };
