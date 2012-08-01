@@ -157,7 +157,7 @@
     </em:localized>
 
     <em:name>PDF Viewer</em:name>
-    <em:version>0.3.502</em:version>
+    <em:version>0.3.504</em:version>
 
     <!-- Firefox -->
     <em:targetApplication>
