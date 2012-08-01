@@ -7,7 +7,7 @@ var PDFJS = {};
   // Use strict in our context only - users might not want it
   'use strict';
 
-  PDFJS.build = 'cc9ab10';
+  PDFJS.build = 'e4a75cf';
 
   // Files are inserted below - see Makefile
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
@@ -27801,6 +27801,7 @@ var Pattern = (function PatternClosure() {
         // Both radial and axial shadings are handled by RadialAxial shading.
         return new Shadings.RadialAxial(dict, matrix, xref, res);
       default:
+        TODO('Unsupported shading type: ' + type);
         return new Shadings.Dummy();
     }
   };
@@ -27937,7 +27938,12 @@ Shadings.Dummy = (function DummyClosure() {
   }
 
   Dummy.fromIR = function Dummy_fromIR() {
-    return 'hotpink';
+    return {
+      type: 'Pattern',
+      getPattern: function Dummy_fromIR_getPattern() {
+        return 'hotpink';
+      }
+    };
   };
 
   Dummy.prototype = {
