@@ -7,7 +7,7 @@ var PDFJS = {};
   // Use strict in our context only - users might not want it
   'use strict';
 
-  PDFJS.build = '37db58e';
+  PDFJS.build = '9ddbe1f';
 
   // Files are inserted below - see Makefile
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
@@ -2007,6 +2007,7 @@ var CanvasExtraState = (function CanvasExtraStateClosure() {
     this.wordSpacing = 0;
     this.textHScale = 1;
     this.textRenderingMode = TextRenderingMode.FILL;
+    this.textRise = 0;
     // Color spaces
     this.fillColorSpace = new DeviceGrayCS();
     this.fillColorSpaceObj = null;
@@ -2451,7 +2452,7 @@ var CanvasGraphics = (function CanvasGraphicsClosure() {
       this.current.textRenderingMode = mode;
     },
     setTextRise: function CanvasGraphics_setTextRise(rise) {
-      TODO('text rise: ' + rise);
+      this.current.textRise = rise;
     },
     moveText: function CanvasGraphics_moveText(x, y) {
       this.current.x = this.current.lineX += x;
@@ -2478,7 +2479,7 @@ var CanvasGraphics = (function CanvasGraphicsClosure() {
 
       ctx.transform.apply(ctx, current.textMatrix);
       ctx.scale(1, -1);
-      ctx.translate(current.x, -1 * current.y);
+      ctx.translate(current.x, -current.y - current.textRise);
       ctx.transform.apply(ctx, fontMatrix);
       ctx.scale(textHScale, 1);
     },
@@ -13844,7 +13845,7 @@ var PartialEvaluator = (function PartialEvaluatorClosure() {
         if (widths) {
           var start = 0, end = 0;
           for (var i = 0, ii = widths.length; i < ii; i++) {
-            var code = widths[i];
+            var code = xref.fetchIfRef(widths[i]);
             if (isArray(code)) {
               for (var j = 0, jj = code.length; j < jj; j++)
                 glyphsWidths[start++] = code[j];
