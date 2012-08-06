@@ -7,7 +7,7 @@ var PDFJS = {};
   // Use strict in our context only - users might not want it
   'use strict';
 
-  PDFJS.build = '485f8eb';
+  PDFJS.build = '20bead2';
 
   // Files are inserted below - see Makefile
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
@@ -14487,7 +14487,8 @@ var FontLoader = {
       document.documentElement.removeEventListener(
         'pdfjsFontLoad', checkFontsLoaded, false);
 
-      callback();
+      // Use timeout to fix chrome intermittent failures on font loading.
+      setTimeout(callback, 0);
       return true;
     }
 
