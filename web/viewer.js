@@ -113,7 +113,7 @@ var Settings = (function SettingsClosure() {
     if (isLocalStorageEnabled)
       database = localStorage.getItem('database') || '{}';
     else
-      return false;
+      return;
 
     database = JSON.parse(database);
     if (!('files' in database))
@@ -285,9 +285,10 @@ var PDFView = {
   set page(val) {
     var pages = this.pages;
     var input = document.getElementById('pageNumber');
+    var event = document.createEvent('UIEvents');
+    event.initUIEvent('pagechange', false, false, window, 0);
+
     if (!(0 < val && val <= pages.length)) {
-      var event = document.createEvent('UIEvents');
-      event.initUIEvent('pagechange', false, false, window, 0);
       event.pageNumber = this.page;
       window.dispatchEvent(event);
       return;
@@ -295,8 +296,6 @@ var PDFView = {
 
     pages[val - 1].updateStats();
     currentPageNumber = val;
-    var event = document.createEvent('UIEvents');
-    event.initUIEvent('pagechange', false, false, window, 0);
     event.pageNumber = val;
     window.dispatchEvent(event);
 
@@ -394,12 +393,12 @@ var PDFView = {
     }
 
     var url = this.url.split('#')[0];
-    url += '#pdfjs.action=download', '_parent';
+    url += '#pdfjs.action=download';
     window.open(url, '_parent');
   },
 
   fallback: function pdfViewFallback() {
-      return;
+    return;
   },
 
   navigateTo: function pdfViewNavigateTo(dest) {
@@ -684,7 +683,6 @@ var PDFView = {
 
     var numVisible = visibleViews.length;
     if (numVisible === 0) {
-      info('No visible views.');
       return false;
     }
     for (var i = 0; i < numVisible; ++i) {
@@ -738,14 +736,14 @@ var PDFView = {
   search: function pdfViewStartSearch() {
     // Limit this function to run every <SEARCH_TIMEOUT>ms.
     var SEARCH_TIMEOUT = 250;
-    var lastSeach = this.lastSearch;
+    var lastSearch = this.lastSearch;
     var now = Date.now();
-    if (lastSeach && (now - lastSeach) < SEARCH_TIMEOUT) {
+    if (lastSearch && (now - lastSearch) < SEARCH_TIMEOUT) {
       if (!this.searchTimer) {
         this.searchTimer = setTimeout(function resumeSearch() {
             PDFView.search();
           },
-          SEARCH_TIMEOUT - (now - lastSeach)
+          SEARCH_TIMEOUT - (now - lastSearch)
         );
       }
       return;
@@ -832,7 +830,6 @@ var PDFView = {
         } else {
           this.page = pageNumber; // simple page
         }
-        return;
       }
     } else if (/^\d+$/.test(hash)) // page number
       this.page = hash;
@@ -903,7 +900,7 @@ var PDFView = {
             extractPageText(pageIndex + 1);
         }
       );
-    };
+    }
     extractPageText(0);
   },
 
@@ -1609,13 +1606,13 @@ var CustomStyle = (function CustomStyleClosure() {
 
     //if all fails then set to undefined
     return (_cache[propName] = 'undefined');
-  }
+  };
 
   CustomStyle.setProp = function set(propName, element, str) {
     var prop = this.getProp(propName);
     if (prop != 'undefined')
       element.style[prop] = str;
-  }
+  };
 
   return CustomStyle;
 })();
@@ -1684,7 +1681,7 @@ var TextLayerBuilder = function textLayerBuilder(textLayerDiv) {
         // Resume rendering
         renderTimer = setInterval(renderTextLayer, renderInterval);
       }, resumeInterval);
-    }; // textLayerOnScroll
+    } // textLayerOnScroll
 
     window.addEventListener('scroll', textLayerOnScroll, false);
   }; // endLayout
