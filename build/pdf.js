@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'1d3aba2';
+'e17d828';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -3123,7 +3123,7 @@ var CanvasGraphics = (function CanvasGraphicsClosure() {
   return CanvasGraphics;
 })();
 
-if (!isWorker) {
+function checkPutBinaryImageDataCompatibility() {
   // Feature detection if the browser can use an Uint8Array directly as imgData.
   var canvas = document.createElement('canvas');
   canvas.width = 1;
@@ -3157,6 +3157,9 @@ if (!isWorker) {
         ctx.putImageData(tmpImgData, 0, 0);
       };
   }
+}
+if (!isWorker) {
+  checkPutBinaryImageDataCompatibility();
 }
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
