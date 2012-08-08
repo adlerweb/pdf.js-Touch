@@ -4,11 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>PDF.js viewer</title>
-    <!-- PDFJSSCRIPT_INCLUDE_FIREFOX_EXTENSION -->
+
 
     <link rel="stylesheet" href="viewer.css"/>
 
-    <script type="text/javascript" src="compatibility.js"></script> <!-- PDFJSSCRIPT_REMOVE_FIREFOX_EXTENSION -->
+    <script type="text/javascript" src="compatibility.js"></script>
+
+
 
 <!-- This snippet is used in production, see Makefile -->
 <link rel="resource" type="application/l10n" href="locale.properties"/>
@@ -18,6 +20,9 @@
   // This specifies the location of the pdf.js file.
   PDFJS.workerSrc = "../build/pdf.js";
 </script>
+
+
+
     <script type="text/javascript" src="debugger.js"></script>
     <script type="text/javascript" src="viewer.js"></script>
   </head>
@@ -163,3 +168,4 @@
     <div id="printContainer"></div>
   </body>
 </html>
+
