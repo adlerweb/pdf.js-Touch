@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'e17d828';
+'7bfd74f';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -4099,11 +4099,12 @@ var PDFFunction = (function PDFFunctionClosure() {
 
       var size = dict.get('Size');
       var bps = dict.get('BitsPerSample');
-      var order = dict.get('Order');
-      if (!order)
-        order = 1;
-      if (order !== 1)
-        error('No support for cubic spline interpolation: ' + order);
+      var order = dict.get('Order') || 1;
+      if (order !== 1) {
+        // No description how cubic spline interpolation works in PDF32000:2008
+        // As in poppler, ignoring order, linear interpolation may work as good
+        TODO('No support for cubic spline interpolation: ' + order);
+      }
 
       var encode = dict.get('Encode');
       if (!encode) {
