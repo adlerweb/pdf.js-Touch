@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'5408be2';
+'6ccf711';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -3144,14 +3144,17 @@ function checkPutBinaryImageDataCompatibility() {
   } catch (e) {
     CanvasGraphics.prototype.putBinaryImageData =
       function CanvasGraphicsPutBinaryImageDataShim(ctx, imgData, w, h) {
-        var tmpImgData = ctx.getImageData(0, 0, w, h);
+        var tmpImgData = 'createImageData' in ctx ? ctx.createImageData(w, h) :
+          ctx.getImageData(0, 0, w, h);
 
-        // Copy over the imageData pixel by pixel.
         var tmpImgDataPixels = tmpImgData.data;
-        var len = tmpImgDataPixels.length;
-
-        while (len--) {
-          tmpImgDataPixels[len] = imgData.data[len];
+        var data = imgData.data;
+        if ('set' in tmpImgDataPixels)
+          tmpImgDataPixels.set(data);
+        else {
+          // Copy over the imageData pixel by pixel.
+          for (var i = 0, ii = tmpImgDataPixels.length; i < ii; i++)
+            tmpImgDataPixels[i] = data[i];
         }
 
         ctx.putImageData(tmpImgData, 0, 0);
