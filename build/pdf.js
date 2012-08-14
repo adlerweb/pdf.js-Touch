@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'7acbe15';
+'590c6c4';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -18134,9 +18134,9 @@ Type1Font.prototype = {
   getType2Subrs: function Type1Font_getType2Subrs(type1Subrs) {
     var bias = 0;
     var count = type1Subrs.length;
-    if (count < 1240)
+    if (count < 1133)
       bias = 107;
-    else if (count < 33900)
+    else if (count < 33769)
       bias = 1131;
     else
       bias = 32768;
