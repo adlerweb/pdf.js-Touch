@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'c760e14';
+'1debf15';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -3791,7 +3791,7 @@ var XRef = (function XRefClosure() {
       var e = this.entries[i];
       if (e === null)
         return null;
-      return e.free ? null : e; // returns null is the entry is free
+      return e.free || !e.offset ? null : e; // returns null if entry is free
     },
     fetchIfRef: function XRef_fetchIfRef(obj) {
       if (!isRef(obj))
