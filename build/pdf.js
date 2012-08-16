@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'c9c5ae3';
+'d38781d';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -12057,6 +12057,9 @@ var ColorSpace = (function ColorSpaceClosure() {
           var baseIndexedCS = ColorSpace.parseToIR(cs[1], xref, res);
           var hiVal = cs[2] + 1;
           var lookup = xref.fetchIfRef(cs[3]);
+          if (isStream(lookup)) {
+            lookup = lookup.getBytes();
+          }
           return ['IndexedCS', baseIndexedCS, hiVal, lookup];
         case 'Separation':
         case 'DeviceN':
@@ -12178,14 +12181,18 @@ var IndexedCS = (function IndexedCSClosure() {
 
     var baseNumComps = base.numComps;
     var length = baseNumComps * highVal;
-    var lookupArray = new Uint8Array(length);
+    var lookupArray;
 
     if (isStream(lookup)) {
+      lookupArray = new Uint8Array(length);
       var bytes = lookup.getBytes(length);
       lookupArray.set(bytes);
     } else if (isString(lookup)) {
+      lookupArray = new Uint8Array(length);
       for (var i = 0; i < length; ++i)
         lookupArray[i] = lookup.charCodeAt(i);
+    } else if (lookup instanceof Uint8Array) {
+      lookupArray = lookup;
     } else {
       error('Unrecognized lookup table: ' + lookup);
     }
