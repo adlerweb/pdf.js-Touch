@@ -1730,8 +1730,19 @@ window.addEventListener('load', function webViewerLoad(evt) {
     locale = hashParams['locale'];
   mozL10n.language.code = locale;
 
-  if ('disableTextLayer' in hashParams)
-    PDFJS.disableTextLayer = (hashParams['disableTextLayer'] === 'true');
+  if ('textLayer' in hashParams) {
+    switch (hashParams['textLayer']) {
+      case 'off':
+        PDFJS.disableTextLayer = true;
+        break;
+      case 'visible':
+      case 'shadow':
+      case 'hover':
+        var viewer = document.getElementById('viewer');
+        viewer.classList.add('textLayer-' + hashParams['textLayer']);
+        break;
+    }
+  }
 
   if ('pdfBug' in hashParams) {
     PDFJS.pdfBug = true;
