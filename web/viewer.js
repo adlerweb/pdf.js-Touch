@@ -337,11 +337,42 @@ var PDFView = {
     return support;
   },
 
+  initPassiveLoading: function pdfViewInitPassiveLoading() {
+    if (!PDFView.loadingBar) {
+      PDFView.loadingBar = new ProgressBar('#loadingBar', {});
+    }
+
+    window.addEventListener('message', function window_message(e) {
+      var args = e.data;
+
+      if (typeof args !== 'object' || !('pdfjsLoadAction' in args))
+        return;
+      switch (args.pdfjsLoadAction) {
+        case 'progress':
+          PDFView.progress(args.loaded / args.total);
+          break;
+        case 'complete':
+          if (!args.data) {
+            PDFView.error(mozL10n.get('loading_error', null,
+                          'An error occurred while loading the PDF.'), e);
+            break;
+          }
+          PDFView.open(args.data, 0);
+          break;
+      }
+    });
+    FirefoxCom.requestSync('initPassiveLoading', null);
+  },
+
+  setTitleUsingUrl: function pdfViewSetTitleUsingUrl(url) {
+    this.url = url;
+    document.title = decodeURIComponent(getFileName(url)) || url;
+  },
+
   open: function pdfViewOpen(url, scale, password) {
     var parameters = {password: password};
     if (typeof url === 'string') { // URL
-      this.url = url;
-      document.title = decodeURIComponent(getFileName(url)) || url;
+      this.setTitleUsingUrl(url);
       parameters.url = url;
     } else if (url && 'byteLength' in url) { // ArrayBuffer
       parameters.data = url;
@@ -1706,7 +1737,7 @@ var TextLayerBuilder = function textLayerBuilder(textLayerDiv) {
   };
 };
 
-window.addEventListener('load', function webViewerLoad(evt) {
+document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
   PDFView.initialize();
   var params = PDFView.parseQueryString(document.location.search.substring(1));
 
@@ -1788,6 +1819,8 @@ window.addEventListener('load', function webViewerLoad(evt) {
       PDFView.sidebarOpen = outerContainer.classList.contains('sidebarOpen');
       PDFView.renderHighestPriority();
     });
+
+
   PDFView.open(file, 0);
 }, true);
 
@@ -1877,7 +1910,7 @@ window.addEventListener('change', function webViewerChange(evt) {
 
   var file = files[0];
   fileReader.readAsArrayBuffer(file);
-  document.title = file.name;
+  PDFView.setTitleUsingUrl(file.name);
 
   // URL does not reflect proper document location - hiding some icons.
   document.getElementById('viewBookmark').setAttribute('hidden', 'true');
