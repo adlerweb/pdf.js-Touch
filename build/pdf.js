@@ -8,7 +8,7 @@ var PDFJS = {};
   'use strict';
 
   PDFJS.build =
-'da861be';
+'7e21d31';
 
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
@@ -18198,7 +18198,7 @@ Type1Font.prototype = {
     // charstring changes size - can't cache .length in loop
     for (var i = 0; i < charstring.length; i++) {
       var command = charstring[i];
-      if (command.charAt) {
+      if (typeof command === 'string') {
         var cmd = map[command];
         assert(cmd, 'Unknow command: ' + command);
 
