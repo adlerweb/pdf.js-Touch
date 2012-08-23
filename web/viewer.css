@@ -653,36 +653,9 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   content: url(images/toolbarButton-zoomIn.png);
 }
 
-.toolbarButton.fullscreen::before {
+.toolbarButton.close::before {
   display: inline-block;
-  content: url(images/toolbarButton-fullscreen.png);
-}
-
-.toolbarButton.print::before {
-  display: inline-block;
-  content: url(images/toolbarButton-print.png);
-}
-
-.toolbarButton.openFile::before {
-  display: inline-block;
-  content: url(images/toolbarButton-openFile.png);
-}
-
-.toolbarButton.download::before {
-  display: inline-block;
-  content: url(images/toolbarButton-download.png);
-}
-
-.toolbarButton.bookmark {
-  -webkit-box-sizing: border-box;
-  -moz-box-sizing: border-box;
-  box-sizing: border-box;
-  margin-top: 3px;
-  padding-top: 4px;
-}
-
-.toolbarButton.bookmark::before {
-  content: url(images/toolbarButton-bookmark.png);
+  content: url(images/toolbarButton-close.png);
 }
     
 #viewThumbnail.toolbarButton::before {
