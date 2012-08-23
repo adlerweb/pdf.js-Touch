@@ -1810,11 +1810,11 @@ document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
 //#endif
 
 //#if !(FIREFOX || MOZCENTRAL)
-  if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
-    document.getElementById('openFile').setAttribute('hidden', 'true');
-  } else {
-    document.getElementById('fileInput').value = null;
-  }
+//  if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+//    document.getElementById('openFile').setAttribute('hidden', 'true');
+//  } else {
+//    document.getElementById('fileInput').value = null;
+//  }
 //#else
 //document.getElementById('openFile').setAttribute('hidden', 'true');
 //#endif
@@ -1866,13 +1866,13 @@ document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
 //}
 //#endif
 
-  if (!PDFView.supportsPrinting) {
-    document.getElementById('print').classList.add('hidden');
-  }
-
-  if (!PDFView.supportsFullscreen) {
-    document.getElementById('fullscreen').classList.add('hidden');
-  }
+//  if (!PDFView.supportsPrinting) {
+//    document.getElementById('print').classList.add('hidden');
+//  }
+//
+//  if (!PDFView.supportsFullscreen) {
+//    document.getElementById('fullscreen').classList.add('hidden');
+//  }
 
   // Listen for warnings to trigger the fallback UI.  Errors should be caught
   // and call PDFView.error() so we don't need to listen for those.
@@ -1970,7 +1970,7 @@ function updateViewarea() {
   store.set('scrollLeft', Math.round(topLeft[0]));
   store.set('scrollTop', Math.round(topLeft[1]));
   var href = PDFView.getAnchorUrl(pdfOpenParams);
-  document.getElementById('viewBookmark').href = href;
+//  document.getElementById('viewBookmark').href = href;
 }
 
 window.addEventListener('resize', function webViewerResize(evt) {
@@ -2004,8 +2004,8 @@ window.addEventListener('change', function webViewerChange(evt) {
   PDFView.setTitleUsingUrl(file.name);
 
   // URL does not reflect proper document location - hiding some icons.
-  document.getElementById('viewBookmark').setAttribute('hidden', 'true');
-  document.getElementById('download').setAttribute('hidden', 'true');
+//  document.getElementById('viewBookmark').setAttribute('hidden', 'true');
+//  document.getElementById('download').setAttribute('hidden', 'true');
 }, true);
 
 function selectScaleOption(value) {
@@ -2201,3 +2201,4 @@ window.addEventListener('afterprint', function afterPrint(evt) {
 //  });
 //});
 //#endif
+
