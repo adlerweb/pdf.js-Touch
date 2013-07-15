@@ -1,18 +1,36 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
+/* Copyright 2012 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/* globals PDFJS, getPdf, combineUrl, StatTimer, SpecialPowers, Promise */
+
+'use strict';
 
 /*
  * A Test Driver for PDF.js
  */
-
-'use strict';
+(function DriverClosure() {
 
 // Disable worker support for running test as
 //   https://github.com/mozilla/pdf.js/pull/764#issuecomment-2638944
 //   "firefox-bin: Fatal IO error 12 (Cannot allocate memory) on X server :1."
 // PDFJS.disableWorker = true;
+PDFJS.enableStats = true;
 
-var appPath, browser, canvas, currentTaskIdx, manifest, stdout;
+var appPath, masterMode, browser, canvas, dummyCanvas, currentTaskIdx,
+    manifest, stdout;
 var inFlightRequests = 0;
 
 function queryParams() {
@@ -26,16 +44,18 @@ function queryParams() {
   return params;
 }
 
-function load() {
+window.load = function load() {
   var params = queryParams();
   browser = params.browser;
   var manifestFile = params.manifestFile;
   appPath = params.path;
+  masterMode = params.masterMode === 'True';
+  var delay = params.delay || 0;
 
   canvas = document.createElement('canvas');
-  canvas.mozOpaque = true;
   stdout = document.getElementById('stdout');
 
+  info('User Agent: ' + navigator.userAgent);
   log('load...\n');
 
   log('Harness thinks this browser is "' + browser + '" with path "' +
@@ -52,8 +72,15 @@ function load() {
       nextTask();
     }
   };
-  r.send(null);
-}
+  if (delay) {
+    log('\nDelaying for ' + delay + 'ms...\n');
+  }
+  // When gathering the stats the numbers seem to be more reliable if the
+  // browser is given more time to startup.
+  setTimeout(function() {
+    r.send(null);
+  }, delay);
+};
 
 function cleanup() {
   // Clear out all the stylesheets since a new one is created for each font.
@@ -95,44 +122,103 @@ function nextTask() {
   }
   var task = manifest[currentTaskIdx];
   task.round = 0;
+  task.stats = {times: []};
 
   log('Loading file "' + task.file + '"\n');
 
   var absoluteUrl = combineUrl(window.location.href, task.file);
-  getPdf(absoluteUrl, function nextTaskGetPdf(data) {
-    var failure;
-    function continuation() {
-      task.pageNum = task.firstPage || 1;
-      nextPage(task, failure);
-    }
-    try {
-      var promise = PDFJS.getDocument(data);
-      promise.then(function(doc) {
-        task.pdfDoc = doc;
-        continuation();
-      }, function(e) {
-        failure = 'load PDF doc : ' + e;
-        continuation();
-      });
-      return;
-    } catch (e) {
-      failure = 'load PDF doc : ' + exceptionToString(e);
-    }
-    continuation();
-  });
+  var failure;
+  function continuation() {
+    task.pageNum = task.firstPage || 1;
+    nextPage(task, failure);
+  }
+
+  PDFJS.disableRange = task.disableRange;
+  PDFJS.disableAutoFetch = !task.enableAutoFetch;
+  try {
+    var promise = PDFJS.getDocument({
+      url: absoluteUrl,
+      password: task.password
+    });
+    promise.then(function(doc) {
+      task.pdfDoc = doc;
+      continuation();
+    }, function(e) {
+      failure = 'load PDF doc : ' + e;
+      continuation();
+    });
+    return;
+  } catch (e) {
+    failure = 'load PDF doc : ' + exceptionToString(e);
+  }
+  continuation();
+}
+
+function getLastPageNum(task) {
+  if (!task.pdfDoc) {
+    return task.firstPage || 1;
+  }
+  var lastPageNum = task.lastPage || 0;
+  if (!lastPageNum || lastPageNum > task.pdfDoc.numPages) {
+    lastPageNum = task.pdfDoc.numPages;
+  }
+  return lastPageNum;
 }
 
 function isLastPage(task) {
-  var limit = task.pageLimit || 0;
-  if (!limit || limit > task.pdfDoc.numPages)
-   limit = task.pdfDoc.numPages;
-
-  return task.pageNum > limit;
+  return task.pageNum > getLastPageNum(task);
 }
 
 function canvasToDataURL() {
   return canvas.toDataURL('image/png');
 }
+
+function NullTextLayerBuilder() {
+}
+NullTextLayerBuilder.prototype = {
+  beginLayout: function NullTextLayerBuilder_BeginLayout() {},
+  endLayout: function NullTextLayerBuilder_EndLayout() {},
+  appendText: function NullTextLayerBuilder_AppendText() {}
+};
+
+function SimpleTextLayerBuilder(ctx, viewport) {
+  this.ctx = ctx;
+  this.viewport = viewport;
+  this.textCounter = 0;
+}
+SimpleTextLayerBuilder.prototype = {
+  beginLayout: function SimpleTextLayerBuilder_BeginLayout() {
+    this.ctx.save();
+  },
+  endLayout: function SimpleTextLayerBuilder_EndLayout() {
+    this.ctx.restore();
+  },
+  appendText: function SimpleTextLayerBuilder_AppendText(geom) {
+    var ctx = this.ctx, viewport = this.viewport;
+    // vScale and hScale already contain the scaling to pixel units
+    var fontHeight = geom.fontSize * Math.abs(geom.vScale);
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = 'red';
+    ctx.fillStyle = 'yellow';
+    ctx.translate(geom.x + (fontHeight * Math.sin(geom.angle)),
+                  geom.y - (fontHeight * Math.cos(geom.angle)));
+    ctx.rotate(geom.angle);
+    ctx.rect(0, 0, geom.canvasWidth * Math.abs(geom.hScale), fontHeight);
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+    var textContent = this.textContent.bidiTexts[this.textCounter].str;
+    ctx.font = fontHeight + 'px ' + geom.fontFamily;
+    ctx.fillStyle = 'black';
+    ctx.fillText(textContent, geom.x, geom.y);
+
+    this.textCounter++;
+  },
+  setTextContent: function SimpleTextLayerBuilder_SetTextContent(textContent) {
+    this.textContent = textContent;
+  }
+};
 
 function nextPage(task, loadError) {
   var failure = loadError || '';
@@ -148,7 +234,7 @@ function nextPage(task, loadError) {
   if (isLastPage(task)) {
     if (++task.round < task.rounds) {
       log(' Round ' + (1 + task.round) + '\n');
-      task.pageNum = 1;
+      task.pageNum = task.firstPage || 1;
     } else {
       ++currentTaskIdx;
       nextTask();
@@ -182,28 +268,44 @@ function nextPage(task, loadError) {
         canvas.height = viewport.height;
         clear(ctx);
 
-        // using the text layer builder that does nothing to test
-        // text layer creation operations
-        var textLayerBuilder = {
-          beginLayout: function nullTextLayerBuilderBeginLayout() {},
-          endLayout: function nullTextLayerBuilderEndLayout() {},
-          appendText: function nullTextLayerBuilderAppendText(text, fontName,
-                                                              fontSize) {}
-        };
+        var drawContext, textLayerBuilder;
+        var initPromise = new Promise();
+        if (task.type == 'text') {
+          // using dummy canvas for pdf context drawing operations
+          if (!dummyCanvas) {
+            dummyCanvas = document.createElement('canvas');
+          }
+          drawContext = dummyCanvas.getContext('2d');
+          // ... text builder will draw its content on the test canvas
+          textLayerBuilder = new SimpleTextLayerBuilder(ctx, viewport);
+
+          page.getTextContent().then(function(textContent) {
+            textLayerBuilder.setTextContent(textContent);
+            initPromise.resolve();
+          });
+        } else {
+          drawContext = ctx;
+          textLayerBuilder = new NullTextLayerBuilder();
+          initPromise.resolve();
+        }
         var renderContext = {
-          canvasContext: ctx,
+          canvasContext: drawContext,
           textLayer: textLayerBuilder,
           viewport: viewport
         };
         var completeRender = (function(error) {
           page.destroy();
+          task.stats = page.stats;
+          page.stats = new StatTimer();
           snapshotCurrentPage(task, error);
         });
-        page.render(renderContext).then(function() {
-          completeRender(false);
-        },
-        function(error) {
-          completeRender('render : ' + error);
+        initPromise.then(function () {
+          page.render(renderContext).then(function() {
+            completeRender(false);
+          },
+          function(error) {
+            completeRender('render : ' + error);
+          });
         });
       },
       function(error) {
@@ -267,36 +369,50 @@ function sendTaskResult(snapshot, task, failure, result) {
       browser: browser,
       id: task.id,
       numPages: task.pdfDoc ?
-               (task.pageLimit || task.pdfDoc.numPages) : 0,
+               (task.lastPage || task.pdfDoc.numPages) : 0,
+      lastPageNum: getLastPageNum(task),
       failure: failure,
       file: task.file,
       round: task.round,
       page: task.pageNum,
-      snapshot: snapshot
+      snapshot: snapshot,
+      stats: task.stats.times
     });
   }
 
+  send('/submit_task_results', result);
+}
+
+function send(url, message) {
   var r = new XMLHttpRequest();
   // (The POST URI is ignored atm.)
-  r.open('POST', '/submit_task_results', true);
+  r.open('POST', url, true);
   r.setRequestHeader('Content-Type', 'application/json');
   r.onreadystatechange = function sendTaskResultOnreadystatechange(e) {
     if (r.readyState == 4) {
       inFlightRequests--;
       // Retry until successful
-      if (r.status !== 200)
-        sendTaskResult(null, null, null, result);
+      if (r.status !== 200) {
+        setTimeout(function() {
+          send(url, message);
+        });
+      }
     }
   };
   document.getElementById('inFlightCount').innerHTML = inFlightRequests++;
-  r.send(result);
+  r.send(message);
+}
+
+function info(message) {
+  send('/info', JSON.stringify({
+    browser: browser,
+    message: message
+  }));
 }
 
 function clear(ctx) {
-  ctx.save();
-  ctx.fillStyle = 'rgb(255, 255, 255)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
+  ctx.beginPath();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 /* Auto-scroll if the scrollbar is near the bottom, otherwise do nothing. */
@@ -315,3 +431,5 @@ function log(str) {
   if (str.lastIndexOf('\n') >= 0)
     checkScrolling();
 }
+
+})(); // DriverClosure

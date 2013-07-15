@@ -1,3 +1,21 @@
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* Copyright 2012 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+'use strict';
+
 var FirefoxCom = (function FirefoxComClosure() {
   return {
     /**
@@ -11,15 +29,13 @@ var FirefoxCom = (function FirefoxComClosure() {
      */
     requestSync: function(action, data) {
       var request = document.createTextNode('');
-      request.setUserData('action', action, null);
-      request.setUserData('data', data, null);
-      request.setUserData('sync', true, null);
       document.documentElement.appendChild(request);
 
-      var sender = document.createEvent('Events');
-      sender.initEvent('pdf.js.message', true, false);
+      var sender = document.createEvent('CustomEvent');
+      sender.initCustomEvent('pdf.js.message', true, false,
+                             {action: action, data: data, sync: true});
       request.dispatchEvent(sender);
-      var response = request.getUserData('response');
+      var response = sender.detail.response;
       document.documentElement.removeChild(request);
       return response;
     },
@@ -33,16 +49,10 @@ var FirefoxCom = (function FirefoxComClosure() {
      */
     request: function(action, data, callback) {
       var request = document.createTextNode('');
-      request.setUserData('action', action, null);
-      request.setUserData('data', data, null);
-      request.setUserData('sync', false, null);
       if (callback) {
-        request.setUserData('callback', callback, null);
-
         document.addEventListener('pdf.js.response', function listener(event) {
           var node = event.target,
-              callback = node.getUserData('callback'),
-              response = node.getUserData('response');
+              response = event.detail.response;
 
           document.documentElement.removeChild(node);
 
@@ -52,9 +62,43 @@ var FirefoxCom = (function FirefoxComClosure() {
       }
       document.documentElement.appendChild(request);
 
-      var sender = document.createEvent('HTMLEvents');
-      sender.initEvent('pdf.js.message', true, false);
+      var sender = document.createEvent('CustomEvent');
+      sender.initCustomEvent('pdf.js.message', true, false,
+                             {action: action, data: data, sync: false,
+                              callback: callback});
       return request.dispatchEvent(sender);
     }
   };
+})();
+
+var DownloadManager = (function DownloadManagerClosure() {
+  function DownloadManager() {}
+
+  DownloadManager.prototype = {
+    downloadUrl: function DownloadManager_downloadUrl(url, filename) {
+      FirefoxCom.request('download', {
+        originalUrl: url,
+        filename: filename
+      });
+    },
+
+    download: function DownloadManager_download(blob, url, filename) {
+      var blobUrl = window.URL.createObjectURL(blob);
+
+      FirefoxCom.request('download', {
+        blobUrl: blobUrl,
+        originalUrl: url,
+        filename: filename
+      },
+        function response(err) {
+          if (err && this.onerror) {
+            this.onerror(err);
+          }
+          window.URL.revokeObjectURL(blobUrl);
+        }.bind(this)
+      );
+    }
+  };
+
+  return DownloadManager;
 })();

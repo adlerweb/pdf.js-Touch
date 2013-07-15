@@ -1,6 +1,10 @@
 *.pdf
+*.error
 
 !tracemonkey.pdf
+!issue2391-1.pdf
+!issue2391-2.pdf
+!filled-background.pdf
 !ArabicCIDTrueType.pdf
 !ThuluthFeatures.pdf
 !arial_unicode_ab_cidfont.pdf
@@ -17,14 +21,18 @@
 !devicen.pdf
 !cmykjpeg.pdf
 !issue840.pdf
+!issue2074.pdf
 !scan-bad.pdf
 !pdfjsbad1586.pdf
 !freeculture.pdf
 !pdfkit_compressed.pdf
 !TAMReview.pdf
 !issue918.pdf
+!issue1905.pdf
+!rotated.pdf
 !issue1249.pdf
 !smaskdim.pdf
+!endchar.pdf
 !type4psfunc.pdf
 !issue1350.pdf
 !S2.pdf
@@ -34,3 +42,13 @@
 !gradientfill.pdf
 !basicapi.pdf
 !mixedfonts.pdf
+!shading_extend.pdf
+!noembed-identity.pdf
+!noembed-identity-2.pdf
+!noembed-jis7.pdf
+!noembed-eucjp.pdf
+!noembed-sjis.pdf
+!vertical.pdf
+!issue2099-1.pdf
+!issue3371.pdf
+!issue2956.pdf

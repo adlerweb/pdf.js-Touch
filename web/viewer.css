@@ -1,3 +1,18 @@
+/* Copyright 2012 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 * {
   padding: 0;
   margin: 0;
@@ -29,46 +44,64 @@ select {
 
 #viewerContainer:-webkit-full-screen {
   top: 0px;
-  padding-top: 6px;
-  padding-bottom: 24px;
+  border-top: 2px solid transparent;
   background-color: #404040;
   background-image: url(images/texture.png);
   width: 100%;
   height: 100%;
-  overflow: auto;
-}
-
-:-webkit-full-screen #viewer {
-  margin: 0pt;
-  padding: 0pt;
-  height: 100%;
-  width: 100%;
   overflow: hidden;
-}
-
-:-webkit-full-screen .page {
-  margin: 0px auto;
-  margin-bottom: 10px;
+  cursor: none;
 }
 
 #viewerContainer:-moz-full-screen {
+  top: 0px;
+  border-top: 2px solid transparent;
   background-color: #404040;
   background-image: url(images/texture.png);
   width: 100%;
   height: 100%;
   overflow: hidden;
+  cursor: none;
 }
 
-:-moz-full-screen .page:last-child {
-  margin-bottom: 40px;
-}
-
-#viewerContainer:full-screen {
+#viewerContainer:fullscreen {
   top: 0px;
+  border-top: 2px solid transparent;
   background-color: #404040;
   background-image: url(images/texture.png);
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  cursor: none;
+}
+
+
+:-webkit-full-screen .page {
+  margin-bottom: 100%;
+}
+
+:-moz-full-screen .page {
+  margin-bottom: 100%;
+}
+
+:fullscreen .page {
+  margin-bottom: 100%;
+}
+
+:-webkit-full-screen a:not(.internalLink) {
+  display: none;
+}
+
+:-moz-full-screen a:not(.internalLink) {
+  display: none;
+}
+
+:fullscreen a:not(.internalLink) {
+  display: none;
+}
+
+#viewerContainer.presentationControls {
+  cursor: default;
 }
 
 /* outer/inner center provides horizontal center */
@@ -106,19 +139,16 @@ html[dir='rtl'] .innerCenter {
   visibility: hidden;
   -webkit-transition-duration: 200ms;
   -webkit-transition-timing-function: ease;
-  -moz-transition-duration: 200ms;
-  -moz-transition-timing-function: ease;
   -ms-transition-duration: 200ms;
   -ms-transition-timing-function: ease;
   -o-transition-duration: 200ms;
   -o-transition-timing-function: ease;
   transition-duration: 200ms;
   transition-timing-function: ease;
-  
+
 }
 html[dir='ltr'] #sidebarContainer {
   -webkit-transition-property: left;
-  -moz-transition-property: left;
   -ms-transition-property: left;
   -o-transition-property: left;
   transition-property: left;
@@ -149,10 +179,9 @@ html[dir='rtl'] #outerContainer.sidebarOpen > #sidebarContainer {
   right: 0;
   bottom: 0;
   left: 0;
+  min-width: 320px;
   -webkit-transition-duration: 200ms;
   -webkit-transition-timing-function: ease;
-  -moz-transition-duration: 200ms;
-  -moz-transition-timing-function: ease;
   -ms-transition-duration: 200ms;
   -ms-transition-timing-function: ease;
   -o-transition-duration: 200ms;
@@ -162,7 +191,6 @@ html[dir='rtl'] #outerContainer.sidebarOpen > #sidebarContainer {
 }
 html[dir='ltr'] #outerContainer.sidebarOpen > #mainContainer {
   -webkit-transition-property: left;
-  -moz-transition-property: left;
   -ms-transition-property: left;
   -o-transition-property: left;
   transition-property: left;
@@ -170,7 +198,6 @@ html[dir='ltr'] #outerContainer.sidebarOpen > #mainContainer {
 }
 html[dir='rtl'] #outerContainer.sidebarOpen > #mainContainer {
   -webkit-transition-property: right;
-  -moz-transition-property: right;
   -ms-transition-property: right;
   -o-transition-property: right;
   transition-property: right;
@@ -197,19 +224,21 @@ html[dir='rtl'] #sidebarContent {
 #viewerContainer {
   overflow: auto;
   box-shadow: inset 1px 0 0 hsla(0,0%,100%,.05);
-  padding-top: 30px;
   position: absolute;
   top: 32px;
   right: 0;
   bottom: 0;
   left: 0;
+  outline: none;
+}
+.loadingInProgress #viewerContainer {
+  top: 39px;
 }
 
 .toolbar {
-  position: absolute;
+  position: relative;
   left: 0;
   right: 0;
-  height: 32px;
   z-index: 9999;
   cursor: default;
 }
@@ -220,18 +249,24 @@ html[dir='rtl'] #sidebarContent {
 
 #toolbarSidebar {
   width: 200px;
-  height: 29px;
-  background-image: url(images/texture.png),
-                    -webkit-linear-gradient(hsla(0,0%,30%,.99), hsla(0,0%,25%,.95));
-  background-image: url(images/texture.png),
-                    -moz-linear-gradient(hsla(0,0%,30%,.99), hsla(0,0%,25%,.95));
-  background-image: url(images/texture.png),
-                    -ms-linear-gradient(hsla(0,0%,30%,.99), hsla(0,0%,25%,.95));
-  background-image: url(images/texture.png),
-                    -o-linear-gradient(hsla(0,0%,30%,.99), hsla(0,0%,25%,.95));
+  height: 32px;
+  background-color: #424242; /* fallback */
   background-image: url(images/texture.png),
                     linear-gradient(hsla(0,0%,30%,.99), hsla(0,0%,25%,.95));
-  box-shadow: inset -2px 0 0 hsla(0,0%,100%,.08),
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.25),
+
+              inset 0 -1px 0 hsla(0,0%,100%,.05),
+              0 1px 0 hsla(0,0%,0%,.15),
+              0 0 1px hsla(0,0%,0%,.1);
+}
+
+#toolbarContainer, .findbar {
+  position: relative;
+  height: 32px;
+  background-color: #474747; /* fallback */
+  background-image: url(images/texture.png),
+                    linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
+  box-shadow: inset 1px 0 0 hsla(0,0%,100%,.08),
               inset 0 1px 1px hsla(0,0%,0%,.15),
               inset 0 -1px 0 hsla(0,0%,100%,.05),
               0 1px 0 hsla(0,0%,0%,.15),
@@ -239,25 +274,158 @@ html[dir='rtl'] #sidebarContent {
 }
 
 #toolbarViewer {
-  position: relative;
   height: 32px;
-  background-image: url(images/texture.png),
-                    -webkit-linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
-  background-image: url(images/texture.png),
-                    -moz-linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
-  background-image: url(images/texture.png),
-                    -ms-linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
-  background-image: url(images/texture.png),
-                    -o-linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
-  background-image: url(images/texture.png),
-                    linear-gradient(hsla(0,0%,32%,.99), hsla(0,0%,27%,.95));
-  border-left: 1px solid hsla(0,0%,0%,.5);
-  box-shadow: inset 1px 0 0 hsla(0,0%,100%,.08),
-              inset 0 1px 1px hsla(0,0%,0%,.15),
-              inset 0 -1px 0 hsla(0,0%,100%,.05),
-              0 1px 0 hsla(0,0%,0%,.15),
-              0 1px 1px hsla(0,0%,0%,.1);
 }
+
+#loadingBar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background-color: #333;
+  border-bottom: 1px solid #333;
+}
+
+#loadingBar .progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background-color: #ddd;
+  overflow: hidden;
+  -ms-transition: width 200ms;
+  -webkit-transition: width 200ms;
+  transition: width 200ms;
+}
+
+@-ms-keyframes progressIndeterminate {
+  0% { left: 0%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+@-webkit-keyframes progressIndeterminate {
+  0% { left: 0%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+@keyframes progressIndeterminate {
+  0% { left: 0%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+#loadingBar .progress.indeterminate {
+  background-color: #999;
+  -ms-transition: none;
+  -webkit-transition: none;
+  transition: none;
+}
+
+#loadingBar .indeterminate .glimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 50px;
+
+  background-image: linear-gradient(to right, #999 0%, #fff 50%, #999 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+
+  -ms-animation: progressIndeterminate 2s linear infinite;
+  -webkit-animation: progressIndeterminate 2s linear infinite;
+  animation: progressIndeterminate 2s linear infinite;
+}
+
+.findbar {
+  top: 32px;
+  position: absolute;
+  z-index: 10000;
+  height: 32px;
+
+  min-width: 16px;
+  padding: 0px 6px 0px 6px;
+  margin: 4px 2px 4px 2px;
+  color: hsl(0,0%,85%);
+  font-size: 12px;
+  line-height: 14px;
+  text-align: left;
+  cursor: default;
+}
+
+html[dir='ltr'] .findbar {
+  left: 68px;
+}
+
+html[dir='rtl'] .findbar {
+  right: 68px;
+}
+
+.findbar label {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+
+#findInput[data-status="pending"] {
+  background-image: url(images/loading-small.png);
+  background-repeat: no-repeat;
+  background-position: right;
+}
+
+.doorHanger {
+  border: 1px solid hsla(0,0%,0%,.5);
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.doorHanger:after, .doorHanger:before {
+  bottom: 100%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+.doorHanger:after {
+  border-bottom-color: hsla(0,0%,32%,.99);
+  border-width: 8px;
+}
+.doorHanger:before {
+  border-bottom-color: hsla(0,0%,0%,.5);
+  border-width: 9px;
+}
+
+html[dir='ltr'] .doorHanger:after {
+  left: 13px;
+  margin-left: -8px;
+}
+
+html[dir='ltr'] .doorHanger:before {
+  left: 13px;
+  margin-left: -9px;
+}
+
+html[dir='rtl'] .doorHanger:after {
+  right: 13px;
+  margin-right: -8px;
+}
+
+html[dir='rtl'] .doorHanger:before {
+  right: 13px;
+  margin-right: -9px;
+}
+
+#findMsg {
+  font-style: italic;
+  color: #A6B7D0;
+}
+
+.notFound {
+  background-color: rgb(255, 137, 153);
+}
+
 html[dir='ltr'] #toolbarViewerLeft {
   margin-left: -1px;
 }
@@ -280,12 +448,16 @@ html[dir='rtl'] #toolbarViewerLeft {
 }
 html[dir='ltr'] #toolbarViewerLeft > *,
 html[dir='ltr'] #toolbarViewerMiddle > *,
-html[dir='ltr'] #toolbarViewerRight > * {
+html[dir='ltr'] #toolbarViewerRight > *,
+html[dir='ltr'] .findbar > * {
+  position: relative;
   float: left;
 }
 html[dir='rtl'] #toolbarViewerLeft > *,
 html[dir='rtl'] #toolbarViewerMiddle > *,
-html[dir='rtl'] #toolbarViewerRight > * {
+html[dir='rtl'] #toolbarViewerRight > *,
+html[dir='rtl'] .findbar > * {
+  position: relative;
   float: right;
 }
 
@@ -325,7 +497,7 @@ html[dir='rtl'] .splitToolbarButton > .toolbarButton {
 }
 
 .toolbarButton.group {
-  margin-right:0;
+  margin-right: 0;
 }
 
 .splitToolbarButton.toggled .toolbarButton {
@@ -337,10 +509,6 @@ html[dir='rtl'] .splitToolbarButton > .toolbarButton {
 .splitToolbarButton.toggled > .toolbarButton,
 .toolbarButton.textButton {
   background-color: hsla(0,0%,0%,.12);
-  background-image: -webkit-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -ms-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -o-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   border: 1px solid hsla(0,0%,0%,.35);
@@ -351,9 +519,6 @@ html[dir='rtl'] .splitToolbarButton > .toolbarButton {
   -webkit-transition-property: background-color, border-color, box-shadow;
   -webkit-transition-duration: 150ms;
   -webkit-transition-timing-function: ease;
-  -moz-transition-property: background-color, border-color, box-shadow;
-  -moz-transition-duration: 150ms;
-  -moz-transition-timing-function: ease;
   -ms-transition-property: background-color, border-color, box-shadow;
   -ms-transition-duration: 150ms;
   -ms-transition-timing-function: ease;
@@ -404,22 +569,19 @@ html[dir='rtl'] .splitToolbarButton > .toolbarButton:first-child {
   margin: 5px 0;
 }
 html[dir='ltr'] .splitToolbarButtonSeparator {
-  float:left;
+  float: left;
 }
 html[dir='rtl'] .splitToolbarButtonSeparator {
-  float:right;
+  float: right;
 }
 .splitToolbarButton:hover > .splitToolbarButtonSeparator,
 .splitToolbarButton.toggled > .splitToolbarButtonSeparator {
   padding: 12px 0;
-  margin: 0;
+  margin: 1px 0;
   box-shadow: 0 0 0 1px hsla(0,0%,100%,.03);
   -webkit-transition-property: padding;
   -webkit-transition-duration: 10ms;
   -webkit-transition-timing-function: ease;
-  -moz-transition-property: padding;
-  -moz-transition-duration: 10ms;
-  -moz-transition-timing-function: ease;
   -ms-transition-property: padding;
   -ms-transition-duration: 10ms;
   -ms-transition-timing-function: ease;
@@ -440,17 +602,14 @@ html[dir='rtl'] .splitToolbarButtonSeparator {
   color: hsl(0,0%,95%);
   font-size: 12px;
   line-height: 14px;
-  -webkit-user-select:none;
-  -moz-user-select:none;
-  -ms-user-select:none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   /* Opera does not support user-select, use <... unselectable="on"> instead */
   cursor: default;
   -webkit-transition-property: background-color, border-color, box-shadow;
   -webkit-transition-duration: 150ms;
   -webkit-transition-timing-function: ease;
-  -moz-transition-property: background-color, border-color, box-shadow;
-  -moz-transition-duration: 150ms;
-  -moz-transition-timing-function: ease;
   -ms-transition-property: background-color, border-color, box-shadow;
   -ms-transition-duration: 150ms;
   -ms-transition-timing-function: ease;
@@ -475,10 +634,6 @@ html[dir='rtl'] .dropdownToolbarButton {
 .toolbarButton:focus,
 .dropdownToolbarButton {
   background-color: hsla(0,0%,0%,.12);
-  background-image: -webkit-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -ms-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -o-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   border: 1px solid hsla(0,0%,0%,.35);
@@ -491,10 +646,6 @@ html[dir='rtl'] .dropdownToolbarButton {
 .toolbarButton:hover:active,
 .dropdownToolbarButton:hover:active {
   background-color: hsla(0,0%,0%,.2);
-  background-image: -webkit-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -ms-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -o-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   border-color: hsla(0,0%,0%,.35) hsla(0,0%,0%,.4) hsla(0,0%,0%,.45);
   box-shadow: 0 1px 1px hsla(0,0%,0%,.1) inset,
@@ -503,9 +654,6 @@ html[dir='rtl'] .dropdownToolbarButton {
   -webkit-transition-property: background-color, border-color, box-shadow;
   -webkit-transition-duration: 10ms;
   -webkit-transition-timing-function: linear;
-  -moz-transition-property: background-color, border-color, box-shadow;
-  -moz-transition-duration: 10ms;
-  -moz-transition-timing-function: linear;
   -ms-transition-property: background-color, border-color, box-shadow;
   -ms-transition-duration: 10ms;
   -ms-transition-timing-function: linear;
@@ -520,10 +668,6 @@ html[dir='rtl'] .dropdownToolbarButton {
 .toolbarButton.toggled,
 .splitToolbarButton.toggled > .toolbarButton.toggled {
   background-color: hsla(0,0%,0%,.3);
-  background-image: -webkit-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -ms-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -o-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   border-color: hsla(0,0%,0%,.4) hsla(0,0%,0%,.45) hsla(0,0%,0%,.5);
   box-shadow: 0 1px 1px hsla(0,0%,0%,.1) inset,
@@ -532,9 +676,6 @@ html[dir='rtl'] .dropdownToolbarButton {
   -webkit-transition-property: background-color, border-color, box-shadow;
   -webkit-transition-duration: 10ms;
   -webkit-transition-timing-function: linear;
-  -moz-transition-property: background-color, border-color, box-shadow;
-  -moz-transition-duration: 10ms;
-  -moz-transition-timing-function: linear;
   -ms-transition-property: background-color, border-color, box-shadow;
   -ms-transition-duration: 10ms;
   -ms-transition-timing-function: linear;
@@ -556,7 +697,7 @@ html[dir='rtl'] .dropdownToolbarButton {
 }
 
 .dropdownToolbarButton {
-  min-width: 120px;
+  width: 120px;
   max-width: 120px;
   padding: 3px 2px 2px;
   overflow: hidden;
@@ -575,9 +716,9 @@ html[dir='rtl'] .dropdownToolbarButton {
   min-width: 140px;
   font-size: 12px;
   color: hsl(0,0%,95%);
-  margin:0;
-  padding:0;
-  border:none;
+  margin: 0;
+  padding: 0;
+  border: none;
   background: rgba(0,0,0,0); /* Opera does not support 'transparent' <select> background */
 }
 
@@ -622,7 +763,49 @@ html[dir='rtl'] .toolbarButton:first-child {
   display: inline-block;
   content: url(images/toolbarButton-sidebarToggle.png);
 }
-    
+
+html[dir='ltr'] #findPrevious {
+  margin-left: 3px;
+}
+html[dir='ltr'] #findNext {
+  margin-right: 3px;
+}
+
+html[dir='rtl'] #findPrevious {
+  margin-right: 3px;
+}
+html[dir='rtl'] #findNext {
+  margin-left: 3px;
+}
+.toolbarButton::before {
+  /* All matching images have a size of 16x16
+   * (except for the print button: 18x16)
+   * All relevant containers have a size of 32x25 */
+  position: absolute;
+  top: 4px;
+  left: 7px;
+}
+
+html[dir='ltr'] .toolbarButton.findPrevious::before {
+  display: inline-block;
+  content: url(images/findbarButton-previous.png);
+}
+
+html[dir='rtl'] .toolbarButton.findPrevious::before {
+  display: inline-block;
+  content: url(images/findbarButton-previous-rtl.png);
+}
+
+html[dir='ltr'] .toolbarButton.findNext::before {
+  display: inline-block;
+  content: url(images/findbarButton-next.png);
+}
+
+html[dir='rtl'] .toolbarButton.findNext::before {
+  display: inline-block;
+  content: url(images/findbarButton-next-rtl.png);
+}
+
 html[dir='ltr'] .toolbarButton.pageUp::before {
   display: inline-block;
   content: url(images/toolbarButton-pageUp.png);
@@ -632,7 +815,7 @@ html[dir='rtl'] .toolbarButton.pageUp::before {
   display: inline-block;
   content: url(images/toolbarButton-pageUp-rtl.png);
 }
-    
+
 html[dir='ltr'] .toolbarButton.pageDown::before {
   display: inline-block;
   content: url(images/toolbarButton-pageDown.png);
@@ -647,7 +830,7 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   display: inline-block;
   content: url(images/toolbarButton-zoomOut.png);
 }
-    
+
 .toolbarButton.zoomIn::before {
   display: inline-block;
   content: url(images/toolbarButton-zoomIn.png);
@@ -657,18 +840,18 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   display: inline-block;
   content: url(images/toolbarButton-close.png);
 }
-    
+
 #viewThumbnail.toolbarButton::before {
   display: inline-block;
   content: url(images/toolbarButton-viewThumbnail.png);
 }
-    
+
 #viewOutline.toolbarButton::before {
   display: inline-block;
   content: url(images/toolbarButton-viewOutline.png);
 }
 
-#viewSearch.toolbarButton::before {
+#viewFind.toolbarButton::before {
   display: inline-block;
   content: url(images/toolbarButton-search.png);
 }
@@ -680,7 +863,7 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   border: 1px solid transparent;
   border-radius: 2px;
   background-color: hsla(0,0%,100%,.09);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
+  background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   border: 1px solid hsla(0,0%,0%,.35);
   border-color: hsla(0,0%,0%,.32) hsla(0,0%,0%,.38) hsla(0,0%,0%,.42);
@@ -690,9 +873,14 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   font-size: 12px;
   line-height: 14px;
   outline-style: none;
-  -moz-transition-property: background-color, border-color, box-shadow;
-  -moz-transition-duration: 150ms;
-  -moz-transition-timing-function: ease;
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+.toolbarField[type=checkbox] {
+  display: inline-block;
+  margin: 8px 0px;
 }
 
 .toolbarField.pageNumber {
@@ -727,33 +915,31 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
   font-size: 12px;
   line-height: 14px;
   text-align: left;
-  -webkit-user-select:none;
-  -moz-user-select:none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
   cursor: default;
 }
 
 #thumbnailView {
-  position: fixed;
+  position: absolute;
   width: 120px;
-  top: 33px;
+  top: 0;
   bottom: 0;
   padding: 10px 40px 0;
   overflow: auto;
 }
 
 .thumbnail {
-  margin-bottom: 15px;
   float: left;
-  width: 114px;
-  height: 142px;
 }
 
 .thumbnail:not([data-loaded]) {
   border: 1px dashed rgba(255, 255, 255, 0.5);
+  margin-bottom: 10px;
 }
 
 .thumbnailImage {
-  -moz-transition-duration: 150ms;
+  transition-duration: 150ms;
   border: 1px solid transparent;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   opacity: 0.8;
@@ -763,9 +949,9 @@ html[dir='rtl'] .toolbarButton.pageDown::before {
 .thumbnailSelectionRing {
   border-radius: 2px;
   padding: 7px;
-  -moz-transition-duration: 150ms;
+  transition-duration: 150ms;
 }
-    
+
 a:focus > .thumbnail > .thumbnailSelectionRing > .thumbnailImage,
 .thumbnail:hover > .thumbnailSelectionRing > .thumbnailImage {
   opacity: .9;
@@ -774,7 +960,7 @@ a:focus > .thumbnail > .thumbnailSelectionRing > .thumbnailImage,
 a:focus > .thumbnail > .thumbnailSelectionRing,
 .thumbnail:hover > .thumbnailSelectionRing {
   background-color: hsla(0,0%,100%,.15);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
+  background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   box-shadow: 0 1px 0 hsla(0,0%,100%,.05) inset,
               0 0 1px hsla(0,0%,100%,.2) inset,
@@ -789,7 +975,7 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
 
 .thumbnail.selected > .thumbnailSelectionRing {
   background-color: hsla(0,0%,100%,.3);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
+  background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   box-shadow: 0 1px 0 hsla(0,0%,100%,.05) inset,
               0 0 1px hsla(0,0%,100%,.1) inset,
@@ -798,41 +984,49 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
 }
 
 #outlineView {
-  position: fixed;
+  position: absolute;
   width: 192px;
-  top: 33px;
+  top: 0;
   bottom: 0;
   padding: 4px 4px 0;
   overflow: auto;
-  -webkit-user-select:none;
-  -moz-user-select:none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 
-.outlineItem > .outlineItems {
+html[dir='ltr'] .outlineItem > .outlineItems {
   margin-left: 20px;
 }
 
-.outlineItem > a,
-#searchResults > a {
+html[dir='rtl'] .outlineItem > .outlineItems {
+  margin-right: 20px;
+}
+
+.outlineItem > a {
   text-decoration: none;
   display: inline-block;
   min-width: 95%;
-  height: 20px;
-  padding: 2px 0 0 10px;
+  height: auto;
   margin-bottom: 1px;
   border-radius: 2px;
   color: hsla(0,0%,100%,.8);
   font-size: 13px;
   line-height: 15px;
-  -moz-user-select:none;
-  cursor: default;
-  white-space: nowrap;
+  -moz-user-select: none;
+  white-space: normal;
 }
 
-.outlineItem > a:hover,
-#searchResults > a:hover {
+html[dir='ltr'] .outlineItem > a {
+  padding: 2px 0 5px 10px;
+}
+
+html[dir='rtl'] .outlineItem > a {
+  padding: 2px 10px 5px 0;
+}
+
+.outlineItem > a:hover {
   background-color: hsla(0,0%,100%,.02);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
+  background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   box-shadow: 0 1px 0 hsla(0,0%,100%,.05) inset,
               0 0 1px hsla(0,0%,100%,.2) inset,
@@ -842,7 +1036,7 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
 
 .outlineItem.selected {
   background-color: hsla(0,0%,100%,.08);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
+  background-image: linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
   background-clip: padding-box;
   box-shadow: 0 1px 0 hsla(0,0%,100%,.05) inset,
               0 0 1px hsla(0,0%,100%,.1) inset,
@@ -850,49 +1044,19 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
   color: hsla(0,0%,100%,1);
 }
 
-.noOutline,
 .noResults {
   font-size: 12px;
   color: hsla(0,0%,100%,.8);
   font-style: italic;
+  cursor: default;
 }
 
-#searchScrollView {
+#findScrollView {
   position: absolute;
   top: 10px;
   bottom: 10px;
   left: 10px;
   width: 280px;
-}
-
-#searchToolbar {
-  padding-left: 0px;
-  right: 0px;
-  padding-top: 0px;
-  padding-bottom: 5px;
-}
-
-#searchToolbar > input {
-  margin-left: 4px;
-  width: 124px;
-}
-
-#searchToolbar button {
-  width: auto;
-  margin: 0;
-  padding: 0 6px;
-  height: 22px;
-}
-
-#searchResults {
-  overflow: auto;
-  position: absolute;
-  top: 30px;
-  bottom: 0px;
-  left: 0px;
-  right: 0;
-  padding: 4px 4px 0;
-  font-size: smaller;
 }
 
 #sidebarControls {
@@ -901,6 +1065,10 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
   height: 32px;
   left: 15px;
   bottom: 35px;
+}
+
+.canvasWrapper {
+  overflow: hidden;
 }
 
 canvas {
@@ -912,12 +1080,12 @@ canvas {
   direction: ltr;
   width: 816px;
   height: 1056px;
-  margin: 10px auto;
+  margin: 1px auto -8px auto;
   position: relative;
-  overflow: hidden;
-  -webkit-box-shadow: 0px 4px 10px #000;
-  -moz-box-shadow: 0px 4px 10px #000;
-  box-shadow: 0px 4px 10px #000;
+  overflow: visible;
+  border: 9px solid transparent;
+  background-clip: content-box;
+  border-image: url(images/shadow.png) 9 9 repeat;
   background-color: white;
 }
 
@@ -929,8 +1097,6 @@ canvas {
 .page > a:hover {
   opacity: 0.2;
   background: #ff0;
-  -webkit-box-shadow: 0px 2px 10px #ff0;
-  -moz-box-shadow: 0px 2px 10px #ff0;
   box-shadow: 0px 2px 10px #ff0;
 }
 
@@ -944,60 +1110,6 @@ canvas {
   background: url('images/loading-icon.gif') center no-repeat;
 }
 
-#loadingBox {
-  position: absolute;
-  top: 50%;
-  margin-top: -25px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  color: #ddd;
-  font-size: 14px;
-}
-
-#loadingBar {
-  display: inline-block;
-  clear: both;
-  margin: 0px;
-  margin-top: 5px;
-  line-height: 0;
-  border-radius: 2px;
-  width: 200px;
-  height: 25px;
-
-  background-color: hsla(0,0%,0%,.3);
-  background-image: -moz-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  background-image: -webkit-linear-gradient(hsla(0,0%,100%,.05), hsla(0,0%,100%,0));
-  border: 1px solid #000;
-  box-shadow: 0 1px 1px hsla(0,0%,0%,.1) inset,
-              0 0 1px hsla(0,0%,0%,.2) inset,
-              0 0 1px 1px rgba(255, 255, 255, 0.1);
-}
-
-#loadingBar .progress {
-  display: inline-block;
-  float: left;
-
-  background: #666;
-  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#b2b2b2), color-stop(100%,#898989));
-  background: -webkit-linear-gradient(top, #b2b2b2 0%,#898989 100%);
-  background: -moz-linear-gradient(top, #b2b2b2 0%,#898989 100%);
-  background: -ms-linear-gradient(top, #b2b2b2 0%,#898989 100%);
-  background: -o-linear-gradient(top, #b2b2b2 0%,#898989 100%);
-  background: linear-gradient(top, #b2b2b2 0%,#898989 100%);    
-
-  border-top-left-radius: 2px;
-  border-bottom-left-radius: 2px;
-
-  width: 0%;
-  height: 100%;
-}
-
-#loadingBar .progress.full {
-  border-top-right-radius: 2px;
-  border-bottom-right-radius: 2px;
-}
-
 .textLayer {
   position: absolute;
   left: 0;
@@ -1006,12 +1118,39 @@ canvas {
   bottom: 0;
   color: #000;
   font-family: sans-serif;
+  overflow: hidden;
 }
 
 .textLayer > div {
   color: transparent;
   position: absolute;
-  line-height:1.3;
+  line-height: 1;
+  white-space: pre;
+  cursor: text;
+}
+
+.textLayer .highlight {
+  margin: -1px;
+  padding: 1px;
+
+  background-color: rgba(180, 0, 170, 0.2);
+  border-radius: 4px;
+}
+
+.textLayer .highlight.begin {
+  border-radius: 4px 0px 0px 4px;
+}
+
+.textLayer .highlight.end {
+  border-radius: 0px 4px 4px 0px;
+}
+
+.textLayer .highlight.middle {
+  border-radius: 0px;
+}
+
+.textLayer .highlight.selected {
+  background-color: rgba(0, 100, 0, 0.2);
 }
 
 /* TODO: file FF bug to support ::-moz-selection:window-inactive
@@ -1020,30 +1159,27 @@ canvas {
 ::selection { background:rgba(0,0,255,0.3); }
 ::-moz-selection { background:rgba(0,0,255,0.3); }
 
-.annotComment > div {
+.annotText > div {
+  z-index: 200;
   position: absolute;
-}
-
-.annotComment > img {
-  position: absolute;
-}
-
-.annotComment > img:hover {
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.annotComment > div {
-  padding: 0.2em;
+  padding: 0.6em;
   max-width: 20em;
-  background-color: #F1E47B;
-  -webkit-box-shadow: 0px 2px 10px #333;
-  -moz-box-shadow: 0px 2px 10px #333;
+  background-color: #FFFF99;
   box-shadow: 0px 2px 10px #333;
+  border-radius: 7px;
 }
 
-.annotComment > div > h1 {
-  font-weight: normal;
+.annotText > img {
+  position: absolute;
+  opacity: 0.6;
+}
+
+.annotText > img:hover {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.annotText > div > h1 {
   font-size: 1.2em;
   border-bottom: 1px solid #000000;
   margin: 0px;
@@ -1055,7 +1191,6 @@ canvas {
   left: 0;
   position: absolute;
   right: 0;
-  top: 32px;
   z-index: 1000;
   padding: 3px;
   font-size: 0.8em;
@@ -1148,13 +1283,18 @@ canvas {
 
 @page {
   margin: 0;
-} 
+}
 
 #printContainer {
   display: none;
 }
 
 @media print {
+  /* General rules for printing. */
+  body {
+    background: transparent none;
+  }
+
   /* Rules for browsers that don't support mozPrintCallback. */
   #sidebarContainer, .toolbar, #loadingBox, #errorWrapper, .textLayer {
     display: none;
@@ -1169,8 +1309,6 @@ canvas {
   .page {
     float: left;
     display: none;
-    -webkit-box-shadow: none;
-    -moz-box-shadow: none;
     box-shadow: none;
   }
 
@@ -1207,15 +1345,15 @@ canvas {
 
 @media all and (max-width: 770px) {
   #sidebarContainer {
-    top: 33px;
+    top: 32px;
     z-index: 100;
+  }
+  .loadingInProgress #sidebarContainer {
+    top: 39px;
   }
   #sidebarContent {
     top: 32px;
     background-color: hsla(0,0%,0%,.7);
-  }
-  #thumbnailView, #outlineView {
-    top: 66px;
   }
 
   html[dir='ltr'] #outerContainer.sidebarOpen > #mainContainer {
@@ -1236,8 +1374,17 @@ canvas {
 }
 
 @media all and (max-width: 600px) {
-  #toolbarViewerRight {
+  .hiddenSmallView {
     display: none;
+  }
+  html[dir='ltr'] .outerCenter {
+    left: 156px;
+  }
+  html[dir='rtr'] .outerCenter {
+    right: 156px;
+  }
+  .toolbarButtonSpacer {
+    width: 0;
   }
 }
 

@@ -1,5 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
+/* globals expect, it, describe, CFFCompiler, CFFParser, CFFIndex, CFFStrings,
+           SEAC_ANALYSIS_ENABLED:true, Type1Parser, StringStream */
 
 'use strict';
 
@@ -32,7 +34,7 @@ describe('font', function() {
     fontData.push(parseInt(hex, 16));
   }
   var bytes = new Uint8Array(fontData);
-  fontData = {getBytes: function() { return bytes}};
+  fontData = {getBytes: function() { return bytes; }};
 
   function bytesToString(bytesArray) {
     var str = '';
@@ -42,7 +44,7 @@ describe('font', function() {
   }
 
   describe('CFFParser', function() {
-    var parser = new CFFParser(fontData);
+    var parser = new CFFParser(fontData, {});
     var cff = parser.parse();
 
     it('parses header', function() {
@@ -94,6 +96,81 @@ describe('font', function() {
       expect(topDict.getByName('FontBBox')).toEqual([-168, -218, 1000, 898]);
       expect(topDict.getByName('CharStrings')).toEqual(94);
       expect(topDict.getByName('Private')).toEqual([45, 102]);
+    });
+
+    it('parses a CharString having cntrmask', function() {
+      var bytes = new Uint8Array([0, 1, // count
+                                  1,  // offsetSize
+                                  0,  // offset[0]
+                                  38, // end
+                                  149, 149, 149, 149, 149, 149, 149, 149,
+                                  149, 149, 149, 149, 149, 149, 149, 149,
+                                  1,  // hstem
+                                  149, 149, 149, 149, 149, 149, 149, 149,
+                                  149, 149, 149, 149, 149, 149, 149, 149,
+                                  3,  // vstem
+                                  20, // cntrmask
+                                  22, 22, // fail if misparsed as hmoveto
+                                  14  // endchar
+                                ]);
+      parser.bytes = bytes;
+      var charStrings = parser.parseCharStrings(0).charStrings;
+      expect(charStrings.count).toEqual(1);
+      // shoudn't be sanitized
+      expect(charStrings.get(0).length).toEqual(38);
+    });
+
+    it('parses a CharString endchar with 4 args w/seac enabled', function() {
+      var seacAnalysisState = SEAC_ANALYSIS_ENABLED;
+      try {
+        SEAC_ANALYSIS_ENABLED = true;
+        var bytes = new Uint8Array([0, 1, // count
+                                    1,  // offsetSize
+                                    0,  // offset[0]
+                                    237, 247, 22, 247, 72, 204, 247, 86, 14]);
+        parser.bytes = bytes;
+        var result = parser.parseCharStrings(0);
+        expect(result.charStrings.count).toEqual(1);
+        expect(result.charStrings.get(0).length).toEqual(1);
+        expect(result.seacs.length).toEqual(1);
+        expect(result.seacs[0].length).toEqual(4);
+        expect(result.seacs[0][0]).toEqual(130);
+        expect(result.seacs[0][1]).toEqual(180);
+        expect(result.seacs[0][2]).toEqual(65);
+        expect(result.seacs[0][3]).toEqual(194);
+      } finally {
+        SEAC_ANALYSIS_ENABLED = seacAnalysisState;
+      }
+    });
+
+    it('parses a CharString endchar with 4 args w/seac disabled', function() {
+      var seacAnalysisState = SEAC_ANALYSIS_ENABLED;
+      try {
+        SEAC_ANALYSIS_ENABLED = false;
+        var bytes = new Uint8Array([0, 1, // count
+                                    1,  // offsetSize
+                                    0,  // offset[0]
+                                    237, 247, 22, 247, 72, 204, 247, 86, 14]);
+        parser.bytes = bytes;
+        var result = parser.parseCharStrings(0);
+        expect(result.charStrings.count).toEqual(1);
+        expect(result.charStrings.get(0).length).toEqual(9);
+        expect(result.seacs.length).toEqual(0);
+      } finally {
+        SEAC_ANALYSIS_ENABLED = seacAnalysisState;
+      }
+    });
+
+    it('parses a CharString endchar no args', function() {
+      var bytes = new Uint8Array([0, 1, // count
+                                  1,  // offsetSize
+                                  0,  // offset[0]
+                                  14]);
+      parser.bytes = bytes;
+      var result = parser.parseCharStrings(0);
+      expect(result.charStrings.count).toEqual(1);
+      expect(result.charStrings.get(0)[0]).toEqual(14);
+      expect(result.seacs.length).toEqual(0);
     });
 
     it('parses predefined charsets', function() {
@@ -219,5 +296,97 @@ describe('font', function() {
       expect(c.encodeFloat(5e-11)).toEqual([0x1e, 0x5c, 0x11, 0xff]);
     });
     // TODO a lot more compiler tests
+  });
+
+  describe('Type1Parser', function() {
+
+    it('splits tokens', function() {
+      var stream = new StringStream('/BlueValues[-17 0]noaccess def');
+      var parser = new Type1Parser(stream);
+      expect(parser.getToken()).toEqual('/');
+      expect(parser.getToken()).toEqual('BlueValues');
+      expect(parser.getToken()).toEqual('[');
+      expect(parser.getToken()).toEqual('-17');
+      expect(parser.getToken()).toEqual('0');
+      expect(parser.getToken()).toEqual(']');
+      expect(parser.getToken()).toEqual('noaccess');
+      expect(parser.getToken()).toEqual('def');
+      expect(parser.getToken()).toEqual(null);
+    });
+    it('handles glued tokens', function() {
+      var stream = new StringStream('dup/CharStrings');
+      var parser = new Type1Parser(stream);
+      expect(parser.getToken()).toEqual('dup');
+      expect(parser.getToken()).toEqual('/');
+      expect(parser.getToken()).toEqual('CharStrings');
+    });
+    it('ignores whitespace', function() {
+      var stream = new StringStream('\nab   c\t');
+      var parser = new Type1Parser(stream);
+      expect(parser.getToken()).toEqual('ab');
+      expect(parser.getToken()).toEqual('c');
+    });
+    it('parses numbers', function() {
+      var stream = new StringStream('123');
+      var parser = new Type1Parser(stream);
+      expect(parser.readNumber()).toEqual(123);
+    });
+    it('parses booleans', function() {
+      var stream = new StringStream('true false');
+      var parser = new Type1Parser(stream);
+      expect(parser.readBoolean()).toEqual(1);
+      expect(parser.readBoolean()).toEqual(0);
+    });
+    it('parses number arrays', function() {
+      var stream = new StringStream('[1 2]');
+      var parser = new Type1Parser(stream);
+      expect(parser.readNumberArray()).toEqual([1, 2]);
+      // Variation on spacing.
+      var stream = new StringStream('[ 1 2 ]');
+      parser = new Type1Parser(stream);
+      expect(parser.readNumberArray()).toEqual([1, 2]);
+    });
+    it('skips comments', function() {
+      var stream = new StringStream(
+        '%!PS-AdobeFont-1.0: CMSY10 003.002\n' +
+        '%%Title: CMSY10\n' +
+        '%Version: 003.002\n' +
+        'FontDirectory');
+      var parser = new Type1Parser(stream);
+      expect(parser.getToken()).toEqual('FontDirectory');
+    });
+    it('parses font program', function() {
+      var stream = new StringStream(
+        '/ExpansionFactor  99\n' +
+        '/Subrs 1 array\n' +
+        'dup 0 1 RD x noaccess put\n'+
+        'end\n' +
+        '/CharStrings 46 dict dup begin\n' +
+        '/.notdef 1 RD x ND' + '\n' +
+        'end');
+      var parser = new Type1Parser(stream);
+      var program = parser.extractFontProgram();
+      expect(program.charstrings.length).toEqual(1);
+      expect(program.properties.privateData.ExpansionFactor).toEqual(99);
+    });
+    it('parses font header font matrix', function() {
+      var stream = new StringStream(
+        '/FontMatrix [0.001 0 0 0.001 0 0 ]readonly def\n');
+      var parser = new Type1Parser(stream);
+      var props = {};
+      var program = parser.extractFontHeader(props);
+      expect(props.fontMatrix).toEqual([0.001, 0, 0, 0.001, 0, 0]);
+    });
+    it('parses font header encoding', function() {
+      var stream = new StringStream(
+        '/Encoding 256 array\n' +
+        '0 1 255 {1 index exch /.notdef put} for\n' +
+        'dup 33 /arrowright put\n' +
+        'readonly def\n');
+      var parser = new Type1Parser(stream);
+      var props = { overridableEncoding: true };
+      var program = parser.extractFontHeader(props);
+      expect(props.baseEncoding[33]).toEqual('arrowright');
+    });
   });
 });

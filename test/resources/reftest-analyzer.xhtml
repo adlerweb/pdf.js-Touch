@@ -74,6 +74,8 @@ Features to add:
   #itemlist > table { border-collapse: collapse; }
   #itemlist > table > tbody > tr > td { border: 1px solid; padding: 1px; }
 
+  .selected { background-color: lightsteelblue; }
+
   /*
   #itemlist > table > tbody > tr.pass > td.url { background: lime; }
   #itemlist > table > tbody > tr.fail > td.url { background: red; }
@@ -110,6 +112,8 @@ var gMagZoom = 16;         // size of the zoomed in pixels
 var gImage1Data;           // ImageData object for the reference image
 var gImage2Data;           // ImageData object for the test output image
 var gFlashingPixels = [];  // array of <path> objects that should be flashed due to pixel color mismatch
+var gPath = '';            // path taken from #web= and prepended to ref/snp urls
+var gSelected = null;      // currently selected comparison
 
 function ID(id) {
   if (!(id in gIDCache))
@@ -190,6 +194,11 @@ function show_phase(phaseid) {
 }
 
 function loadFromWeb(url) {
+  var lastSlash = url.lastIndexOf('/');
+  if (lastSlash) {
+    gPath = url.substring(0, lastSlash + 1);
+  }
+
   var r = new XMLHttpRequest();
   r.open("GET", url);
   r.onreadystatechange = function() {
@@ -310,6 +319,7 @@ function build_viewer() {
     tr.appendChild(td);
 
     td = document.createElement("td");
+    td.id = "url" + i;
     td.className = "url";
     // Only display part of URL after "/mozilla/".
     var match = item.url.match(/\/mozilla\/(.*)/);
@@ -344,10 +354,15 @@ function get_image_data(src, whenReady) {
 
     whenReady(ctx.getImageData(0, 0, 800, 1000));
   };
-  img.src = src;
+  img.src = gPath + src;
 }
 
 function show_images(i) {
+  if (gSelected !== null) {
+    ID('url' + gSelected).classList.remove('selected');
+  }
+  gSelected = i;
+  ID('url' + gSelected).classList.add('selected');
   var item = gTestItems[i];
   var cell = ID("images");
 
@@ -356,17 +371,17 @@ function show_images(i) {
   ID("diffrect").style.display = "none";
   ID("imgcontrols").reset();
 
-  ID("image1").setAttributeNS(XLINK_NS, "xlink:href", item.images[0]);
+  ID("image1").setAttributeNS(XLINK_NS, "xlink:href", gPath + item.images[0]);
   // Making the href be #image1 doesn't seem to work
-  ID("feimage1").setAttributeNS(XLINK_NS, "xlink:href", item.images[0]);
+  ID("feimage1").setAttributeNS(XLINK_NS, "xlink:href", gPath + item.images[0]);
   if (item.images.length == 1) {
     ID("imgcontrols").style.display = "none";
   } else {
     ID("imgcontrols").style.display = "";
 
-    ID("image2").setAttributeNS(XLINK_NS, "xlink:href", item.images[1]);
+    ID("image2").setAttributeNS(XLINK_NS, "xlink:href", gPath + item.images[1]);
     // Making the href be #image2 doesn't seem to work
-    ID("feimage2").setAttributeNS(XLINK_NS, "xlink:href", item.images[1]);
+    ID("feimage2").setAttributeNS(XLINK_NS, "xlink:href", gPath + item.images[1]);
   }
 
   cell.style.display = "";
@@ -472,6 +487,30 @@ function show_pixelinfo(x, y, pix1rgb, pix1hex, pix2rgb, pix2hex) {
   ID("pix2hex").textContent = pix2hex;
   ID("pix2rgb").textContent = pix2rgb;
 }
+
+window.addEventListener('keydown', function keydown(event) {
+  if (event.which === 84) {
+    // 't' switch test/ref images
+    var val = 0;
+    if (document.querySelector('input[name="which"][value="0"]:checked')) {
+      val = 1;
+    }
+    document.querySelector('input[name="which"][value="' + val + '"]').click();
+  } else if (event.which === 78 || event.which === 80) {
+    // 'n' next image, 'p' previous image
+    var select = gSelected;
+    if (gSelected === null) {
+      select = 0;
+    } else if (event.which === 78) {
+      select++;
+    } else {
+      select--;
+    }
+    var length = gTestItems.length;
+    select = select < 0 ? length - 1 : select >= length ? 0 : select;
+    show_images(select);
+  }
+});
 
   ]]></script>
 

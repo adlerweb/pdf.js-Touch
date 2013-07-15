@@ -1,5 +1,32 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
+/* Copyright 2012 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/* globals CanvasGraphics, combineUrl, createScratchCanvas, error, ErrorFont,
+           Font, FontLoader, globalScope, info, isArrayBuffer, loadJpegStream,
+           MessageHandler, PDFJS, PDFObjects, Promise, StatTimer, warn,
+           WorkerMessageHandler, PasswordResponses */
+
+ 'use strict';
+
+/**
+ * The maximum allowed image size in total pixels e.g. width * height. Images
+ * above this value will not be drawn. Use -1 for no limit.
+ * @var {Number}
+ */
+PDFJS.maxImageSize = PDFJS.maxImageSize === undefined ? -1 : PDFJS.maxImageSize;
 
 /**
  * This is the main entry point for loading a PDF and interacting with it.
@@ -15,9 +42,21 @@
  *  - httpHeaders - Basic authentication headers.
  *  - password - For decrypting password-protected PDFs.
  *
+ * @param {object} pdfDataRangeTransport is optional. It is used if you want
+ * to manually serve range requests for data in the PDF. See viewer.js for
+ * an example of pdfDataRangeTransport's interface.
+ *
+ * @param {function} passwordCallback is optional. It is used to request a
+ * password if wrong or no password was provided. The callback receives two
+ * parameters: function that needs to be called with new password and reason
+ * (see {PasswordResponses}).
+ *
  * @return {Promise} A promise that is resolved with {PDFDocumentProxy} object.
  */
-PDFJS.getDocument = function getDocument(source) {
+PDFJS.getDocument = function getDocument(source,
+                                         pdfDataRangeTransport,
+                                         passwordCallback,
+                                         progressCallback) {
   var workerInitializedPromise, workerReadyPromise, transport;
 
   if (typeof source === 'string') {
@@ -44,8 +83,10 @@ PDFJS.getDocument = function getDocument(source) {
 
   workerInitializedPromise = new PDFJS.Promise();
   workerReadyPromise = new PDFJS.Promise();
-  transport = new WorkerTransport(workerInitializedPromise, workerReadyPromise);
+  transport = new WorkerTransport(workerInitializedPromise,
+      workerReadyPromise, pdfDataRangeTransport, progressCallback);
   workerInitializedPromise.then(function transportInitialized() {
+    transport.passwordCallback = passwordCallback;
     transport.fetchDocument(params);
   });
   return workerReadyPromise;
@@ -75,6 +116,13 @@ var PDFDocumentProxy = (function PDFDocumentProxyClosure() {
       return this.pdfInfo.fingerprint;
     },
     /**
+     * @return {boolean} true if embedded document fonts are in use. Will be
+     * set during rendering of the pages.
+     */
+    get embeddedFontsUsed() {
+      return this.transport.embeddedFontsUsed;
+    },
+    /**
      * @param {number} The page number to get. The first page is 1.
      * @return {Promise} A promise that is resolved with a {PDFPageProxy}
      * object.
@@ -87,9 +135,16 @@ var PDFDocumentProxy = (function PDFDocumentProxyClosure() {
      * mapping named destinations to reference numbers.
      */
     getDestinations: function PDFDocumentProxy_getDestinations() {
+      return this.transport.getDestinations();
+    },
+    /**
+     * @return {Promise} A promise that is resolved with an array of all the
+     * JavaScript strings in the name tree.
+     */
+    getJavaScript: function PDFDocumentProxy_getDestinations() {
       var promise = new PDFJS.Promise();
-      var destinations = this.pdfInfo.destinations;
-      promise.resolve(destinations);
+      var js = this.pdfInfo.javaScript;
+      promise.resolve(js);
       return promise;
     },
     /**
@@ -143,6 +198,13 @@ var PDFDocumentProxy = (function PDFDocumentProxyClosure() {
       this.transport.getData(promise);
       return promise;
     },
+    /**
+     * @return {Promise} A promise that is resolved when the document's data
+     * is loaded
+     */
+    dataLoaded: function PDFDocumentProxy_dataLoaded() {
+      return this.transport.dataLoaded();
+    },
     destroy: function PDFDocumentProxy_destroy() {
       this.transport.destroy();
     }
@@ -156,8 +218,10 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
     this.transport = transport;
     this.stats = new StatTimer();
     this.stats.enabled = !!globalScope.PDFJS.enableStats;
-    this.objs = transport.objs;
+    this.commonObjs = transport.commonObjs;
+    this.objs = new PDFObjects();
     this.renderInProgress = false;
+    this.cleanupAfterRender = false;
   }
   PDFPageProxy.prototype = {
     /**
@@ -218,6 +282,8 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
      *   canvasContext(required): A 2D context of a DOM Canvas object.,
      *   textLayer(optional): An object that has beginLayout, endLayout, and
      *                        appendText functions.,
+     *   imageLayer(optional): An object that has beginLayout, endLayout and
+     *                         appendImage functions.,
      *   continueCallback(optional): A function that will be called each time
      *                               the rendering is paused.  To continue
      *                               rendering call the function that is the
@@ -247,16 +313,17 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
       var self = this;
       function complete(error) {
         self.renderInProgress = false;
-        if (self.destroyed) {
-          delete self.operatorList;
+        if (self.destroyed || self.cleanupAfterRender) {
           delete self.displayReadyPromise;
+          delete self.operatorList;
+          self.objs.clear();
         }
 
         if (error)
           promise.reject(error);
         else
           promise.resolve();
-      };
+      }
       var continueCallback = params.continueCallback;
 
       // Once the operatorList and fonts are loaded, do the actual rendering.
@@ -267,8 +334,8 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
             return;
           }
 
-          var gfx = new CanvasGraphics(params.canvasContext,
-            this.objs, params.textLayer);
+          var gfx = new CanvasGraphics(params.canvasContext, this.commonObjs,
+            this.objs, params.textLayer, params.imageLayer);
           try {
             this.display(gfx, params.viewport, complete, continueCallback);
           } catch (e) {
@@ -291,17 +358,9 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
       var self = this;
       this.operatorList = operatorList;
 
-      var displayContinuation = function pageDisplayContinuation() {
-        // Always defer call to display() to work around bug in
-        // Firefox error reporting from XHR callbacks.
-        setTimeout(function pageSetTimeout() {
-          self.displayReadyPromise.resolve();
-        });
-      };
-
       this.ensureFonts(fonts,
         function pageStartRenderingFromOperatorListEnsureFonts() {
-          displayContinuation();
+          self.displayReadyPromise.resolve();
         }
       );
     },
@@ -311,13 +370,22 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
     ensureFonts: function PDFPageProxy_ensureFonts(fonts, callback) {
       this.stats.time('Font Loading');
       // Convert the font names to the corresponding font obj.
+      var fontObjs = [];
       for (var i = 0, ii = fonts.length; i < ii; i++) {
-        fonts[i] = this.objs.objs[fonts[i]].data;
+        var obj = this.commonObjs.getData(fonts[i]);
+        if (obj.error) {
+          warn('Error during font loading: ' + obj.error);
+          continue;
+        }
+        if (!obj.coded) {
+          this.transport.embeddedFontsUsed = true;
+        }
+        fontObjs.push(obj);
       }
 
       // Load all the fonts
       FontLoader.bind(
-        fonts,
+        fontObjs,
         function pageEnsureFontsFontObjs(fontObjs) {
           this.stats.timeEnd('Font Loading');
 
@@ -333,21 +401,22 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
       var stats = this.stats;
       stats.time('Rendering');
 
-      gfx.beginDrawing(viewport);
+      var operatorList = this.operatorList;
+      gfx.beginDrawing(viewport, operatorList.transparency);
 
       var startIdx = 0;
-      var length = this.operatorList.fnArray.length;
-      var operatorList = this.operatorList;
+      var length = operatorList.fnArray.length;
       var stepper = null;
-      if (PDFJS.pdfBug && StepperManager.enabled) {
-        stepper = StepperManager.create(this.pageNumber - 1);
+      if (PDFJS.pdfBug && 'StepperManager' in globalScope &&
+          globalScope['StepperManager'].enabled) {
+        stepper = globalScope['StepperManager'].create(this.pageNumber - 1);
         stepper.init(operatorList);
         stepper.nextBreakPoint = stepper.getNextBreakPoint();
       }
 
       var continueWrapper;
       if (continueCallback)
-        continueWrapper = function() { continueCallback(next); }
+        continueWrapper = function() { continueCallback(next); };
       else
         continueWrapper = next;
 
@@ -400,6 +469,7 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
       if (!this.renderInProgress) {
         delete this.operatorList;
         delete this.displayReadyPromise;
+        this.objs.clear();
       }
     }
   };
@@ -409,13 +479,19 @@ var PDFPageProxy = (function PDFPageProxyClosure() {
  * For internal use only.
  */
 var WorkerTransport = (function WorkerTransportClosure() {
-  function WorkerTransport(workerInitializedPromise, workerReadyPromise) {
+  function WorkerTransport(workerInitializedPromise, workerReadyPromise,
+      pdfDataRangeTransport, progressCallback) {
+    this.pdfDataRangeTransport = pdfDataRangeTransport;
+
     this.workerReadyPromise = workerReadyPromise;
-    this.objs = new PDFObjects();
+    this.progressCallback = progressCallback;
+    this.commonObjs = new PDFObjects();
 
     this.pageCache = [];
     this.pagePromises = [];
-    this.fontsLoading = {};
+    this.embeddedFontsUsed = false;
+
+    this.passwordCallback = null;
 
     // If worker support isn't disabled explicit and the browser has worker
     // support, create a new web worker and test if it/the browser fullfills
@@ -429,19 +505,9 @@ var WorkerTransport = (function WorkerTransportClosure() {
       }
 
       try {
-        var worker;
-//#if !(FIREFOX || MOZCENTRAL)
         // Some versions of FF can't create a worker on localhost, see:
         // https://bugzilla.mozilla.org/show_bug.cgi?id=683280
-        worker = new Worker(workerSrc);
-//#else
-//      // The firefox extension can't load the worker from the resource://
-//      // url so we have to inline the script and then use the blob loader.
-//      var bb = new MozBlobBuilder();
-//      bb.append(document.querySelector('#PDFJS_SCRIPT_TAG').textContent);
-//      var blobUrl = window.URL.createObjectURL(bb.getBlob());
-//      worker = new Worker(blobUrl);
-//#endif
+        var worker = new Worker(workerSrc);
         var messageHandler = new MessageHandler('main', worker);
         this.messageHandler = messageHandler;
 
@@ -473,13 +539,17 @@ var WorkerTransport = (function WorkerTransportClosure() {
   }
   WorkerTransport.prototype = {
     destroy: function WorkerTransport_destroy() {
-      if (this.worker)
-        this.worker.terminate();
-
       this.pageCache = [];
       this.pagePromises = [];
+      var self = this;
+      this.messageHandler.send('Terminate', null, function () {
+        if (self.worker) {
+          self.worker.terminate();
+        }
+      });
     },
     setupFakeWorker: function WorkerTransport_setupFakeWorker() {
+      warn('Setting up fake worker.');
       // If we don't use a worker, just post/sendMessage to the main thread.
       var fakeWorker = {
         postMessage: function WorkerTransport_postMessage(obj) {
@@ -500,6 +570,31 @@ var WorkerTransport = (function WorkerTransportClosure() {
       function WorkerTransport_setupMessageHandler(messageHandler) {
       this.messageHandler = messageHandler;
 
+      function updatePassword(password) {
+        messageHandler.send('UpdatePassword', password);
+      }
+
+      var pdfDataRangeTransport = this.pdfDataRangeTransport;
+      if (pdfDataRangeTransport) {
+        pdfDataRangeTransport.addRangeListener(function(begin, chunk) {
+          messageHandler.send('OnDataRange', {
+            begin: begin,
+            chunk: chunk
+          });
+        });
+
+        pdfDataRangeTransport.addProgressListener(function(loaded) {
+          messageHandler.send('OnDataProgress', {
+            loaded: loaded
+          });
+        });
+
+        messageHandler.on('RequestDataRange',
+          function transportDataRange(data) {
+            pdfDataRangeTransport.requestDataRange(data.begin, data.end);
+          }, this);
+      }
+
       messageHandler.on('GetDoc', function transportDoc(data) {
         var pdfInfo = data.pdfInfo;
         var pdfDocument = new PDFDocumentProxy(pdfInfo, this);
@@ -508,10 +603,30 @@ var WorkerTransport = (function WorkerTransportClosure() {
       }, this);
 
       messageHandler.on('NeedPassword', function transportPassword(data) {
+        if (this.passwordCallback) {
+          return this.passwordCallback(updatePassword,
+                                       PasswordResponses.NEED_PASSWORD);
+        }
         this.workerReadyPromise.reject(data.exception.message, data.exception);
       }, this);
 
       messageHandler.on('IncorrectPassword', function transportBadPass(data) {
+        if (this.passwordCallback) {
+          return this.passwordCallback(updatePassword,
+                                       PasswordResponses.INCORRECT_PASSWORD);
+        }
+        this.workerReadyPromise.reject(data.exception.message, data.exception);
+      }, this);
+
+      messageHandler.on('InvalidPDF', function transportInvalidPDF(data) {
+        this.workerReadyPromise.reject(data.exception.name, data.exception);
+      }, this);
+
+      messageHandler.on('MissingPDF', function transportMissingPDF(data) {
+        this.workerReadyPromise.reject(data.exception.message, data.exception);
+      }, this);
+
+      messageHandler.on('UnknownError', function transportUnknownError(data) {
         this.workerReadyPromise.reject(data.exception.message, data.exception);
       }, this);
 
@@ -537,47 +652,66 @@ var WorkerTransport = (function WorkerTransportClosure() {
         page.startRenderingFromOperatorList(data.operatorList, depFonts);
       }, this);
 
-      messageHandler.on('obj', function transportObj(data) {
+      messageHandler.on('commonobj', function transportObj(data) {
         var id = data[0];
         var type = data[1];
-        if (this.objs.hasData(id))
+        if (this.commonObjs.hasData(id))
+          return;
+
+        switch (type) {
+          case 'Font':
+            var exportedData = data[2];
+
+            // At this point, only the font object is created but the font is
+            // not yet attached to the DOM. This is done in `FontLoader.bind`.
+            var font;
+            if ('error' in exportedData)
+              font = new ErrorFont(exportedData.error);
+            else
+              font = new Font(exportedData);
+            this.commonObjs.resolve(id, font);
+            break;
+          default:
+            error('Got unknown common object type ' + type);
+        }
+      }, this);
+
+      messageHandler.on('obj', function transportObj(data) {
+        var id = data[0];
+        var pageIndex = data[1];
+        var type = data[2];
+        var pageProxy = this.pageCache[pageIndex];
+        if (pageProxy.objs.hasData(id))
           return;
 
         switch (type) {
           case 'JpegStream':
-            var imageData = data[2];
-            loadJpegStream(id, imageData, this.objs);
+            var imageData = data[3];
+            loadJpegStream(id, imageData, pageProxy.objs);
             break;
           case 'Image':
-            var imageData = data[2];
-            this.objs.resolve(id, imageData);
-            break;
-          case 'Font':
-            var name = data[2];
-            var file = data[3];
-            var properties = data[4];
+            var imageData = data[3];
+            pageProxy.objs.resolve(id, imageData);
 
-            if (file) {
-              // Rewrap the ArrayBuffer in a stream.
-              var fontFileDict = new Dict();
-              file = new Stream(file, 0, file.length, fontFileDict);
+            // heuristics that will allow not to store large data
+            var MAX_IMAGE_SIZE_TO_STORE = 8000000;
+            if ('data' in imageData &&
+                imageData.data.length > MAX_IMAGE_SIZE_TO_STORE) {
+              pageProxy.cleanupAfterRender = true;
             }
-
-            // At this point, only the font object is created but the font is
-            // not yet attached to the DOM. This is done in `FontLoader.bind`.
-            var font = new Font(name, file, properties);
-            this.objs.resolve(id, font);
             break;
           default:
-            error('Got unkown object type ' + type);
+            error('Got unknown object type ' + type);
         }
       }, this);
 
       messageHandler.on('DocProgress', function transportDocProgress(data) {
-        this.workerReadyPromise.progress({
-          loaded: data.loaded,
-          total: data.total
-        });
+        if (this.progressCallback) {
+          this.progressCallback({
+            loaded: data.loaded,
+            total: data.total
+          });
+        }
       }, this);
 
       messageHandler.on('DocError', function transportDocError(data) {
@@ -629,13 +763,27 @@ var WorkerTransport = (function WorkerTransportClosure() {
     },
 
     fetchDocument: function WorkerTransport_fetchDocument(source) {
-      this.messageHandler.send('GetDocRequest', {source: source});
+      source.disableAutoFetch = PDFJS.disableAutoFetch;
+      source.chunkedViewerLoading = !!this.pdfDataRangeTransport;
+      this.messageHandler.send('GetDocRequest', {
+        source: source,
+        disableRange: PDFJS.disableRange,
+        maxImageSize: PDFJS.maxImageSize
+      });
     },
 
     getData: function WorkerTransport_getData(promise) {
       this.messageHandler.send('GetData', null, function(data) {
         promise.resolve(data);
       });
+    },
+
+    dataLoaded: function WorkerTransport_dataLoaded() {
+      var promise = new PDFJS.Promise();
+      this.messageHandler.send('DataLoaded', null, function(args) {
+        promise.resolve(args);
+      });
+      return promise;
     },
 
     getPage: function WorkerTransport_getPage(pageNumber, promise) {
@@ -651,6 +799,16 @@ var WorkerTransport = (function WorkerTransportClosure() {
     getAnnotations: function WorkerTransport_getAnnotations(pageIndex) {
       this.messageHandler.send('GetAnnotationsRequest',
         { pageIndex: pageIndex });
+    },
+
+    getDestinations: function WorkerTransport_getDestinations() {
+      var promise = new PDFJS.Promise();
+      this.messageHandler.send('GetDestinations', null,
+        function transportDestinations(destinations) {
+          promise.resolve(destinations);
+        }
+      );
+      return promise;
     }
   };
   return WorkerTransport;

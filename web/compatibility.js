@@ -1,7 +1,28 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
+/* Copyright 2012 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/* globals VBArray, PDFJS */
 
 'use strict';
+
+// Initializing PDFJS global object here, it case if we need to change/disable
+// some PDF.js features, e.g. range requests
+if (typeof PDFJS === 'undefined') {
+  (typeof window !== 'undefined' ? window : this).PDFJS = {};
+}
 
 // Checking if the typed arrays are supported
 (function checkTypedArrayCompatibility() {
@@ -40,8 +61,14 @@
       result = [];
       for (var i = 0; i < arg1; ++i)
         result[i] = 0;
-    } else
+    } else if ('slice' in arg1) {
       result = arg1.slice(0);
+    } else {
+      result = [];
+      for (var i = 0, n = arg1.length; i < n; ++i) {
+        result[i] = arg1[i];
+      }
+    }
 
     result.subarray = subarray;
     result.buffer = result;
@@ -65,26 +92,38 @@
   window.Float64Array = TypedArray;
 })();
 
+// URL = URL || webkitURL
+(function normalizeURLObject() {
+  if (!window.URL) {
+    window.URL = window.webkitURL;
+  }
+})();
+
 // Object.create() ?
 (function checkObjectCreateCompatibility() {
   if (typeof Object.create !== 'undefined')
     return;
 
   Object.create = function objectCreate(proto) {
-    var constructor = function objectCreateConstructor() {};
-    constructor.prototype = proto;
-    return new constructor();
+    function Constructor() {}
+    Constructor.prototype = proto;
+    return new Constructor();
   };
 })();
 
 // Object.defineProperty() ?
 (function checkObjectDefinePropertyCompatibility() {
   if (typeof Object.defineProperty !== 'undefined') {
-    // some browsers (e.g. safari) cannot use defineProperty() on DOM objects
-    // and thus the native version is not sufficient
     var definePropertyPossible = true;
     try {
+      // some browsers (e.g. safari) cannot use defineProperty() on DOM objects
+      // and thus the native version is not sufficient
       Object.defineProperty(new Image(), 'id', { value: 'test' });
+      // ... another test for android gb browser for non-DOM objects
+      var Test = function Test() {};
+      Test.prototype = { get id() { } };
+      Object.defineProperty(new Test(), 'id',
+        { value: '', configurable: true, enumerable: true, writable: false });
     } catch (e) {
       definePropertyPossible = false;
     }
@@ -244,10 +283,9 @@
   };
 })();
 
-// IE9/10 text/html data URI
+// IE9-11 text/html data URI
 (function checkDataURICompatibility() {
-  if (!('documentMode' in document) ||
-      document.documentMode !== 9 && document.documentMode !== 10)
+  if (!('documentMode' in document) || document.documentMode > 11)
     return;
   // overriding the src property
   var originalSrcDescriptor = Object.getOwnPropertyDescriptor(
@@ -315,7 +353,7 @@
   function changeList(element, itemName, add, remove) {
     var s = element.className || '';
     var list = s.split(/\s+/g);
-    if (list[0] == '') list.shift();
+    if (list[0] === '') list.shift();
     var index = list.indexOf(itemName);
     if (index < 0 && add)
       list.push(itemName);
@@ -359,10 +397,25 @@
   });
 })();
 
-// Check console compatability
+// Check console compatibility
 (function checkConsoleCompatibility() {
-  if (typeof console == 'undefined') {
-    console = {log: function() {}};
+  if (!('console' in window)) {
+    window.console = {
+      log: function() {},
+      error: function() {},
+      warn: function() {}
+    };
+  } else if (!('bind' in console.log)) {
+    // native functions in IE9 might not have bind
+    console.log = (function(fn) {
+      return function(msg) { return fn(msg); };
+    })(console.log);
+    console.error = (function(fn) {
+      return function(msg) { return fn(msg); };
+    })(console.error);
+    console.warn = (function(fn) {
+      return function(msg) { return fn(msg); };
+    })(console.warn);
   }
 })();
 
@@ -396,4 +449,22 @@
     },
     enumerable: true
   });
+})();
+
+(function checkRangeRequests() {
+  // Safari has issues with cached range requests see:
+  // https://github.com/mozilla/pdf.js/issues/3260
+  // Last tested with version 6.0.4.
+  var isSafari = Object.prototype.toString.call(
+                  window.HTMLElement).indexOf('Constructor') > 0;
+  if (isSafari) {
+    PDFJS.disableRange = true;
+  }
+})();
+
+// Check if the browser supports manipulation of the history.
+(function checkHistoryManipulation() {
+  if (!window.history.pushState) {
+    PDFJS.disableHistory = true;
+  }
 })();
