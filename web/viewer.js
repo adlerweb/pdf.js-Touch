@@ -2474,11 +2474,11 @@ document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
 //#endif
 
 //#if !(FIREFOX || MOZCENTRAL)
-//  if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
-//    document.getElementById('openFile').setAttribute('hidden', 'true');
-//  } else {
-//    document.getElementById('fileInput').value = null;
-//  }
+  if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+    document.getElementById('openFile').setAttribute('hidden', 'true');
+  } else {
+    document.getElementById('fileInput').value = null;
+  }
 //#else
 //document.getElementById('openFile').setAttribute('hidden', 'true');
 //#endif
@@ -2545,7 +2545,6 @@ document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
     PDFBug.init();
   }
 
-/*
   if (!PDFView.supportsPrinting) {
     document.getElementById('print').classList.add('hidden');
   }
@@ -2565,7 +2564,6 @@ document.addEventListener('DOMContentLoaded', function webViewerLoad(evt) {
       PDFView.fallback();
     }
   });
-*/
 
   var mainContainer = document.getElementById('mainContainer');
   var outerContainer = document.getElementById('outerContainer');
@@ -2748,7 +2746,7 @@ function updateViewarea() {
     store.set('scrollTop', Math.round(topLeft[1]));
   });
   var href = PDFView.getAnchorUrl(pdfOpenParams);
-  //document.getElementById('viewBookmark').href = href;
+  document.getElementById('viewBookmark').href = href;
 
   // Update the current bookmark in the browsing history.
   PDFHistory.updateCurrentBookmark(pdfOpenParams, pageNumber);
@@ -2787,8 +2785,8 @@ window.addEventListener('change', function webViewerChange(evt) {
   PDFView.setTitleUsingUrl(file.name);
 
   // URL does not reflect proper document location - hiding some icons.
-//  document.getElementById('viewBookmark').setAttribute('hidden', 'true');
-//  document.getElementById('download').setAttribute('hidden', 'true');
+  document.getElementById('viewBookmark').setAttribute('hidden', 'true');
+  document.getElementById('download').setAttribute('hidden', 'true');
 }, true);
 
 function selectScaleOption(value) {
@@ -3150,4 +3148,3 @@ window.addEventListener('afterprint', function afterPrint(evt) {
 //  });
 //});
 //#endif
-

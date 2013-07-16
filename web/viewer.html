@@ -155,10 +155,28 @@ limitations under the License.
               </div>
               <div id="toolbarViewerRight">
                 <input id="fileInput" class="fileInput" type="file" oncontextmenu="return false;" style="visibility: hidden; position: fixed; right: 0; top: 0" />
+                <button id="presentationMode" class="toolbarButton presentationMode hiddenSmallView" title="Switch to Presentation Mode" tabindex="12" data-l10n-id="presentation_mode" style="visibility: hidden;">
+                  <span data-l10n-id="presentation_mode_label">Presentation Mode</span>
+                </button>
+
+                <button id="openFile" class="toolbarButton openFile hiddenSmallView" title="Open File" tabindex="13" data-l10n-id="open_file style="visibility: hidden;"">
+                   <span data-l10n-id="open_file_label">Open</span>
+                </button>
+
+                <button id="print" class="toolbarButton print" title="Print" tabindex="14" data-l10n-id="print" style="visibility: hidden;">
+                  <span data-l10n-id="print_label">Print</span>
+                </button>
+
+                <button id="download" class="toolbarButton download" title="Download" tabindex="15" data-l10n-id="download" style="visibility: hidden;">
+                  <span data-l10n-id="download_label">Download</span>
+                </button>
+                <div class="toolbarButtonSpacer"></div>
+                <a href="#" id="viewBookmark" class="toolbarButton bookmark hiddenSmallView" title="Current view (copy or open in new window)" tabindex="16" data-l10n-id="bookmark" style="visibility: hidden;"><span data-l10n-id="bookmark_label">Current View</span></a>
+				
+				<input id="fileInput" class="fileInput" type="file" oncontextmenu="return false;" style="visibility: hidden; position: fixed; right: 0; top: 0" />
                 <button id="close" class="toolbarButton close" title="Close" onclick="javascript:history.back();" tabindex="12" data-l10n-id="close">
                   <span data-l10n-id="close_label">Close</span>
                 </button>
-                <span id="openFile" style="display: none;">Dummy</span>
               </div>
               <div class="outerCenter">
                 <div class="innerCenter" id="toolbarViewerMiddle">
