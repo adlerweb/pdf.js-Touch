@@ -45,6 +45,10 @@ ways:
 Chrome, go to `Tools > Extension` and load the (unpackaged) extension from the
 directory `build/chrome`.
 
+## Requirements
+
+You need to have node 0.8.x installed.
+
 ## Getting the Code
 
 To get a local copy of the current code, clone it using git:
