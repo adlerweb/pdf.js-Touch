@@ -1,5 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 /* Copyright 2012 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,37 +15,21 @@
 
 'use strict';
 
-// List of files to include;
-var files = [
-  'network.js',
-  'chunked_stream.js',
-  'pdf_manager.js',
-  'core.js',
-  'util.js',
-  'canvas.js',
-  'obj.js',
-  'annotation.js',
-  'function.js',
-  'charsets.js',
-  'cidmaps.js',
-  'colorspace.js',
-  'crypto.js',
-  'evaluator.js',
-  'fonts.js',
-  'glyphlist.js',
-  'image.js',
-  'metrics.js',
-  'parser.js',
-  'pattern.js',
-  'stream.js',
-  'worker.js',
-  'jpx.js',
-  'jbig2.js',
-  'bidi.js',
-  '../external/jpgjs/jpg.js'
-];
+//#if !PRODUCTION
+//// Patch importScripts to work around a bug in WebKit and Chrome 48-.
+//// See https://crbug.com/572225 and https://webkit.org/b/153317.
+self.importScripts = (function (importScripts) {
+  return function() {
+    setTimeout(function () {}, 0);
+    return importScripts.apply(this, arguments);
+  };
+})(importScripts);
+//#endif
 
-// Load all the files.
-for (var i = 0; i < files.length; i++) {
-  importScripts(files[i]);
-}
+importScripts('../node_modules/requirejs/require.js');
+
+require.config({paths: {'pdfjs': '.'}});
+require(['pdfjs/core/network', 'pdfjs/core/worker'],
+    function (network, worker) {
+  // Worker is loaded at this point.
+});

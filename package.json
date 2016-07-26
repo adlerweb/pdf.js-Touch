@@ -1,20 +1,29 @@
 {
   "name": "pdf.js",
-  "version": "0.7.169",
-  "dependencies": {
-    "jshint": "git://github.com/jshint/jshint.git#42ace75a"
+  "version": "0.8.0",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-util": "^3.0.7",
+    "gulp-zip": "^3.2.0",
+    "jasmine-core": "^2.4.1",
+    "jsdoc": "^3.3.0-alpha9",
+    "jshint": "~2.8.0",
+    "node-ensure": "^0.0.0",
+    "requirejs": "^2.1.22",
+    "rimraf": "^2.4.1",
+    "shelljs": "~0.4.0",
+    "streamqueue": "^1.1.1",
+    "typogr": "~0.6.5",
+    "uglify-js": "^2.6.1",
+    "wintersmith": "^2.0.0",
+    "yargs": "^3.14.0"
   },
   "scripts": {
-    "test": "node make lint"
+    "test": "gulp lint"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/mozilla/pdf.js.git"
   },
-  "licenses": [
-    {
-      "type": "Apache v2",
-      "url": "https://github.com/mozilla/pdf.js/blob/master/LICENSE"
-    }
-  ]
+  "license": "Apache-2.0"
 }

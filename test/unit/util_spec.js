@@ -1,81 +1,39 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
-/* globals expect, it, describe, combineUrl, Dict, isDict, Name */
+/* globals describe, it, expect, stringToPDFString, removeNullCharacters */
 
 'use strict';
 
 describe('util', function() {
-
-  describe('combineUrl', function() {
-    it('absolute url with protocol stays as is', function() {
-      var baseUrl = 'http://server/index.html';
-      var url = 'http://server2/test2.html';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server2/test2.html';
-      expect(result).toEqual(expected);
+  describe('stringToPDFString', function() {
+    it('handles ISO Latin 1 strings', function() {
+      var str = '\x8Dstring\x8E';
+      expect(stringToPDFString(str)).toEqual('\u201Cstring\u201D');
     });
 
-    it('absolute url without protocol uses prefix from base', function() {
-      var baseUrl = 'http://server/index.html';
-      var url = '/test2.html';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/test2.html';
-      expect(result).toEqual(expected);
+    it('handles UTF-16BE strings', function() {
+      var str = '\xFE\xFF\x00\x73\x00\x74\x00\x72\x00\x69\x00\x6E\x00\x67';
+      expect(stringToPDFString(str)).toEqual('string');
     });
 
-    it('combines relative url with base', function() {
-      var baseUrl = 'http://server/index.html';
-      var url = 'test2.html';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/test2.html';
-      expect(result).toEqual(expected);
-    });
+    it('handles empty strings', function() {
+      // ISO Latin 1
+      var str1 = '';
+      expect(stringToPDFString(str1)).toEqual('');
 
-    it('combines relative url (w/hash) with base', function() {
-      var baseUrl = 'http://server/index.html#!/test';
-      var url = 'test2.html';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/test2.html';
-      expect(result).toEqual(expected);
-    });
-
-    it('combines relative url (w/query) with base', function() {
-      var baseUrl = 'http://server/index.html?search=/test';
-      var url = 'test2.html';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/test2.html';
-      expect(result).toEqual(expected);
-    });
-
-    it('returns base url when url is empty', function() {
-      var baseUrl = 'http://server/index.html';
-      var url = '';
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/index.html';
-      expect(result).toEqual(expected);
-    });
-
-    it('returns base url when url is undefined', function() {
-      var baseUrl = 'http://server/index.html';
-      var url;
-      var result = combineUrl(baseUrl, url);
-      var expected = 'http://server/index.html';
-      expect(result).toEqual(expected);
+      // UTF-16BE
+      var str2 = '\xFE\xFF';
+      expect(stringToPDFString(str2)).toEqual('');
     });
   });
 
-  describe('isDict', function() {
-    it('handles empty dictionaries with type check', function() {
-      var dict = new Dict();
-      expect(isDict(dict, 'Page')).toEqual(false);
+  describe('removeNullCharacters', function() {
+    it('should not modify string without null characters', function() {
+      var str = 'string without null chars';
+      expect(removeNullCharacters(str)).toEqual('string without null chars');
     });
 
-    it('handles dictionaries with type check', function() {
-      var dict = new Dict();
-      dict.set('Type', new Name('Page'));
-      expect(isDict(dict, 'Page')).toEqual(true);
+    it('should modify string with null characters', function() {
+      var str = 'string\x00With\x00Null\x00Chars';
+      expect(removeNullCharacters(str)).toEqual('stringWithNullChars');
     });
   });
-
 });
-

@@ -1,4 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* Copyright 2013 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* globals URL, PDFJS */
 
 'use strict';
 
-var DownloadManager = (function DownloadManagerClosure() {
-
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs-web/download_manager', ['exports', 'pdfjs-web/pdfjs'],
+      factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports, require('./pdfjs.js'));
+  } else {
+    factory((root.pdfjsWebDownloadManager = {}), root.pdfjsWebPDFJS);
+  }
+}(this, function (exports, pdfjsLib) {
+//#if GENERIC || CHROME
   function download(blobUrl, filename) {
     var a = document.createElement('a');
     if (a.click) {
@@ -59,11 +66,23 @@ var DownloadManager = (function DownloadManagerClosure() {
 
   DownloadManager.prototype = {
     downloadUrl: function DownloadManager_downloadUrl(url, filename) {
-      if (!PDFJS.isValidUrl(url, true)) {
+      if (!pdfjsLib.isValidUrl(url, true)) {
         return; // restricted/invalid URL
       }
 
       download(url + '#pdfjs.action=download', filename);
+    },
+
+    downloadData: function DownloadManager_downloadData(data, filename,
+                                                        contentType) {
+      if (navigator.msSaveBlob) { // IE10 and above
+        return navigator.msSaveBlob(new Blob([data], { type: contentType }),
+                                    filename);
+      }
+
+      var blobUrl = pdfjsLib.createObjectURL(data, contentType,
+        pdfjsLib.PDFJS.disableCreateObjectURL);
+      download(blobUrl, filename);
     },
 
     download: function DownloadManager_download(blob, url, filename) {
@@ -86,5 +105,6 @@ var DownloadManager = (function DownloadManagerClosure() {
     }
   };
 
-  return DownloadManager;
-})();
+  exports.DownloadManager = DownloadManager;
+//#endif
+}));

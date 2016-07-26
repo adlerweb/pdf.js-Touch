@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-* { -moz-box-sizing: border-box; }
-
 * {
   padding: 0;
   margin: 0;
@@ -30,7 +28,7 @@ html {
 body {
   background: url(images/document_bg.png);
   color: #fff;
-  font-family: "MozTT", sans-serif;
+  font-family: sans-serif;
   font-size: 10px;
   height: 100%;
   width: 100%;
@@ -39,8 +37,6 @@ body {
 }
 
 section {
-  overflow: hidden;
-  font-size: 1rem;
   position: absolute;
   top: 0;
   left: 0;
@@ -91,6 +87,7 @@ footer {
 }
 
 #pageNumber {
+  -moz-appearance: textfield; /* hides the spinner in moz */
   position: absolute;
   width: 28%;
   height: 100%;
@@ -103,6 +100,7 @@ footer {
   background-image: url(images/div_line_left.png), url(images/div_line_right.png);
   background-repeat: no-repeat;
   background-position: left, right;
+  background-size: 0.2rem, 0.2rem;
 }
 
 .toolbarButton.zoomOut {
@@ -149,22 +147,7 @@ canvas {
   display: block;
 }
 
-.page {
-  direction: ltr;
-  width: 81.6rem;
-  height: 105.6rem;
-  margin: 1rem auto;
-  position: relative;
-  overflow: hidden;
-  background-color: white;
-}
-
-.page > a {
-  display: block;
-  position: absolute;
-}
-
-.loadingIcon {
+.pdfViewer .page .loadingIcon {
   width: 2.9rem;
   height: 2.9rem;
   background: url("images/spinner.png") no-repeat left top / 38rem ;
@@ -197,43 +180,21 @@ canvas {
 #loadingBar .progress {
   position: absolute;
   left: 0;
-  width: 0%;
+  width: 0;
   height: 100%;
   background-color: #ddd;
   overflow: hidden;
-  -moz-transition: width 200ms;
-  -ms-transition: width 200ms;
-  -webkit-transition: width 200ms;
   transition: width 200ms;
 }
 
-@-moz-keyframes progressIndeterminate {
-  0% { left: 0%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
-@-ms-keyframes progressIndeterminate {
-  0% { left: 0%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
-
-@-webkit-keyframes progressIndeterminate {
-  0% { left: 0%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
 @keyframes progressIndeterminate {
-  0% { left: 0%; }
+  0% { left: 0; }
   50% { left: 100%; }
   100% { left: 100%; }
 }
 
 #loadingBar .progress.indeterminate {
   background-color: #999;
-  -moz-transition: none;
-  -ms-transition: none;
-  -webkit-transition: none;
   transition: none;
 }
 
@@ -245,11 +206,9 @@ canvas {
   width: 5rem;
 
   background-image: linear-gradient(to right, #999 0%, #fff 50%, #999 100%);
-  background-size: 100% 100% no-repeat;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 
-  -moz-animation: progressIndeterminate 2s linear infinite;
-  -ms-animation: progressIndeterminate 2s linear infinite;
-  -webkit-animation: progressIndeterminate 2s linear infinite;
   animation: progressIndeterminate 2s linear infinite;
 }
 

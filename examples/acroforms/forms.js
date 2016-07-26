@@ -1,5 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 
 //
 // Basic AcroForms input controls rendering
@@ -7,22 +5,27 @@
 
 'use strict';
 
+// Specify the PDF with AcroForm here
+var pdfWithFormsPath = '../../test/pdfs/f1040.pdf';
+
 var formFields = {};
 
 function setupForm(div, content, viewport) {
   function bindInputItem(input, item) {
     if (input.name in formFields) {
       var value = formFields[input.name];
-      if (input.type == 'checkbox')
+      if (input.type == 'checkbox') {
         input.checked = value;
-      else if (!input.type || input.type == 'text')
+      } else if (!input.type || input.type == 'text') {
         input.value = value;
+      }
     }
     input.onchange = function pageViewSetupInputOnBlur() {
-      if (input.type == 'checkbox')
+      if (input.type == 'checkbox') {
         formFields[input.name] = input.checked;
-      else if (!input.type || input.type == 'text')
+      } else if (!input.type || input.type == 'text') {
         formFields[input.name] = input.value;
+      }
     };
   }
   function createElementWithStyle(tagName, item) {
@@ -39,7 +42,7 @@ function setupForm(div, content, viewport) {
     var fontStyles = '';
     if ('fontSize' in item) {
       fontStyles += 'font-size: ' + Math.round(item.fontSize *
-        viewport.fontScale) + 'px;';
+                                               viewport.fontScale) + 'px;';
     }
     switch (item.textAlignment) {
       case 0:
@@ -58,11 +61,12 @@ function setupForm(div, content, viewport) {
   content.getAnnotations().then(function(items) {
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
-      switch (item.type) {
+      switch (item.subtype) {
         case 'Widget':
           if (item.fieldType != 'Tx' && item.fieldType != 'Btn' &&
-              item.fieldType != 'Ch')
+              item.fieldType != 'Ch') {
             break;
+          }
           var inputDiv = createElementWithStyle('div', item);
           inputDiv.className = 'inputHint';
           div.appendChild(inputDiv);
@@ -119,13 +123,12 @@ function renderPage(div, pdf, pageNumber, callback) {
     canvas.height = pageDisplayHeight;
     pageDivHolder.appendChild(canvas);
 
-
     // Render PDF page into canvas context
     var renderContext = {
       canvasContext: context,
       viewport: viewport
     };
-    page.render(renderContext).then(callback);
+    page.render(renderContext).promise.then(callback);
 
     // Prepare and populate form elements layer
     var formDiv = document.createElement('div');
@@ -135,16 +138,23 @@ function renderPage(div, pdf, pageNumber, callback) {
   });
 }
 
-// Fetch the PDF document from the URL using promices
-PDFJS.getDocument(pdfWithFormsPath).then(function getPdfForm(pdf) {
-  // Rendering all pages starting from first
-  var viewer = document.getElementById('viewer');
-  var pageNumber = 1;
-  renderPage(viewer, pdf, pageNumber++, function pageRenderingComplete() {
-    if (pageNumber > pdf.numPages)
-      return; // All pages rendered
-    // Continue rendering of the next page
-    renderPage(viewer, pdf, pageNumber++, pageRenderingComplete);
+// In production, the bundled pdf.js shall be used instead of RequireJS.
+require.config({paths: {'pdfjs': '../../src'}});
+require(['pdfjs/display/api', 'pdfjs/display/global'], function (api, global) {
+  // In production, change this to point to the built `pdf.worker.js` file.
+  global.PDFJS.workerSrc = '../../src/worker_loader.js';
+
+  // Fetch the PDF document from the URL using promises.
+  api.getDocument(pdfWithFormsPath).then(function getPdfForm(pdf) {
+    // Rendering all pages starting from first
+    var viewer = document.getElementById('viewer');
+    var pageNumber = 1;
+    renderPage(viewer, pdf, pageNumber++, function pageRenderingComplete() {
+      if (pageNumber > pdf.numPages) {
+        return; // All pages rendered
+      }
+      // Continue rendering of the next page
+      renderPage(viewer, pdf, pageNumber++, pageRenderingComplete);
+    });
   });
 });
-

@@ -1,3 +1,10 @@
 language: node_js
 node_js:
-  - 0.8
+  - node
+cache:
+  directories:
+    - node_modules
+install:
+  - npm install -g gulp-cli
+  - npm install
+  - npm update
