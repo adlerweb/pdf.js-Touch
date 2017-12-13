@@ -13,19 +13,7 @@
  * limitations under the License.
  */
 
-'use strict';
-
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs-web/view_history', ['exports'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports);
-  } else {
-    factory((root.pdfjsWebViewHistory = {}));
-  }
-}(this, function (exports) {
-
-var DEFAULT_VIEW_HISTORY_CACHE_SIZE = 20;
+const DEFAULT_VIEW_HISTORY_CACHE_SIZE = 20;
 
 /**
  * View History - This is a utility for saving various view parameters for
@@ -36,95 +24,96 @@ var DEFAULT_VIEW_HISTORY_CACHE_SIZE = 20;
  *  - FIREFOX or MOZCENTRAL - uses sessionStorage.
  *  - GENERIC or CHROME     - uses localStorage, if it is available.
  */
-var ViewHistory = (function ViewHistoryClosure() {
-  function ViewHistory(fingerprint, cacheSize) {
+class ViewHistory {
+  constructor(fingerprint, cacheSize = DEFAULT_VIEW_HISTORY_CACHE_SIZE) {
     this.fingerprint = fingerprint;
-    this.cacheSize = cacheSize || DEFAULT_VIEW_HISTORY_CACHE_SIZE;
-    this.isInitializedPromiseResolved = false;
-    this.initializedPromise =
-        this._readFromStorage().then(function (databaseStr) {
-      this.isInitializedPromiseResolved = true;
+    this.cacheSize = cacheSize;
 
-      var database = JSON.parse(databaseStr || '{}');
+    this._initializedPromise = this._readFromStorage().then((databaseStr) => {
+      let database = JSON.parse(databaseStr || '{}');
       if (!('files' in database)) {
         database.files = [];
       }
       if (database.files.length >= this.cacheSize) {
         database.files.shift();
       }
-      var index;
-      for (var i = 0, length = database.files.length; i < length; i++) {
-        var branch = database.files[i];
+      let index;
+      for (let i = 0, length = database.files.length; i < length; i++) {
+        let branch = database.files[i];
         if (branch.fingerprint === this.fingerprint) {
           index = i;
           break;
         }
       }
       if (typeof index !== 'number') {
-        index = database.files.push({fingerprint: this.fingerprint}) - 1;
+        index = database.files.push({ fingerprint: this.fingerprint, }) - 1;
       }
       this.file = database.files[index];
       this.database = database;
-    }.bind(this));
+    });
   }
 
-  ViewHistory.prototype = {
-    _writeToStorage: function ViewHistory_writeToStorage() {
-      return new Promise(function (resolve) {
-        var databaseStr = JSON.stringify(this.database);
+  _writeToStorage() {
+    return new Promise((resolve) => {
+      let databaseStr = JSON.stringify(this.database);
 
-//#if FIREFOX || MOZCENTRAL
-//      sessionStorage.setItem('pdfjsHistory', databaseStr);
-//      resolve();
-//#endif
-
-//#if !(FIREFOX || MOZCENTRAL)
-        localStorage.setItem('database', databaseStr);
-        resolve();
-//#endif
-      }.bind(this));
-    },
-
-    _readFromStorage: function ViewHistory_readFromStorage() {
-      return new Promise(function (resolve) {
-//#if FIREFOX || MOZCENTRAL
-//      resolve(sessionStorage.getItem('pdfjsHistory'));
-//#endif
-
-//#if !(FIREFOX || MOZCENTRAL)
-        resolve(localStorage.getItem('database'));
-//#endif
-      });
-    },
-
-    set: function ViewHistory_set(name, val) {
-      if (!this.isInitializedPromiseResolved) {
-        return;
+      if (typeof PDFJSDev !== 'undefined' &&
+          PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
+        sessionStorage.setItem('pdfjs.history', databaseStr);
+      } else {
+        localStorage.setItem('pdfjs.history', databaseStr);
       }
+      resolve();
+    });
+  }
+
+  _readFromStorage() {
+    return new Promise(function(resolve) {
+      if (typeof PDFJSDev !== 'undefined' &&
+          PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
+        resolve(sessionStorage.getItem('pdfjs.history'));
+      } else {
+        resolve(localStorage.getItem('pdfjs.history'));
+      }
+    });
+  }
+
+  set(name, val) {
+    return this._initializedPromise.then(() => {
       this.file[name] = val;
       return this._writeToStorage();
-    },
+    });
+  }
 
-    setMultiple: function ViewHistory_setMultiple(properties) {
-      if (!this.isInitializedPromiseResolved) {
-        return;
-      }
-      for (var name in properties) {
+  setMultiple(properties) {
+    return this._initializedPromise.then(() => {
+      for (let name in properties) {
         this.file[name] = properties[name];
       }
       return this._writeToStorage();
-    },
+    });
+  }
 
-    get: function ViewHistory_get(name, defaultValue) {
-      if (!this.isInitializedPromiseResolved) {
-        return defaultValue;
+  get(name, defaultValue) {
+    return this._initializedPromise.then(() => {
+      let val = this.file[name];
+      return val !== undefined ? val : defaultValue;
+    });
+  }
+
+  getMultiple(properties) {
+    return this._initializedPromise.then(() => {
+      let values = Object.create(null);
+
+      for (let name in properties) {
+        let val = this.file[name];
+        values[name] = val !== undefined ? val : properties[name];
       }
-      return this.file[name] || defaultValue;
-    }
-  };
+      return values;
+    });
+  }
+}
 
-  return ViewHistory;
-})();
-
-exports.ViewHistory = ViewHistory;
-}));
+export {
+  ViewHistory,
+};

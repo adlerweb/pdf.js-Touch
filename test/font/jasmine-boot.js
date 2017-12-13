@@ -34,16 +34,20 @@
  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-/*globals jasmineRequire, jasmine, TestReporter */
+/* globals jasmineRequire, TestReporter */
 
 // Modified jasmine's boot.js file to load PDF.js libraries async.
 
 'use strict';
 
 function initializePDFJS(callback) {
-  require.config({paths: {'pdfjs': '../../src'}});
-  require(['pdfjs/core/fonts', 'pdfjs/core/stream', 'pdfjs/core/primitives',
-    'pdfjs/core/cmap'], function (fonts, stream, primitives, cmap) {
+  Promise.all([SystemJS.import('pdfjs/core/fonts'),
+               SystemJS.import('pdfjs/core/stream'),
+               SystemJS.import('pdfjs/core/primitives'),
+               SystemJS.import('pdfjs/core/cmap')])
+         .then(function (modules) {
+    var fonts = modules[0], stream = modules[1],
+        primitives = modules[2], cmap = modules[3];
     // Expose some of the PDFJS members to global scope for tests.
     window.Font = fonts.Font;
     window.ToUnicodeMap = fonts.ToUnicodeMap;
@@ -67,7 +71,9 @@ function initializePDFJS(callback) {
 
   // Runner Parameters
   var queryString = new jasmine.QueryString({
-    getWindowLocation: function() { return window.location; }
+    getWindowLocation() {
+      return window.location;
+    },
   });
 
   var catchingExceptions = queryString.getParam('catch');
@@ -87,28 +93,30 @@ function initializePDFJS(callback) {
 
   // Reporters
   var htmlReporter = new jasmine.HtmlReporter({
-    env: env,
-    onRaiseExceptionsClick: function() {
+    env,
+    onRaiseExceptionsClick() {
       queryString.navigateWithNewParam('catch', !env.catchingExceptions());
     },
-    onThrowExpectationsClick: function() {
+    onThrowExpectationsClick() {
       queryString.navigateWithNewParam('throwFailures',
                                        !env.throwingExpectationFailures());
     },
-    onRandomClick: function() {
+    onRandomClick() {
       queryString.navigateWithNewParam('random', !env.randomTests());
     },
-    addToExistingQueryString: function(key, value) {
+    addToExistingQueryString(key, value) {
       return queryString.fullStringWithNewParam(key, value);
     },
-    getContainer: function() { return document.body; },
-    createElement: function() {
+    getContainer() {
+      return document.body;
+    },
+    createElement() {
       return document.createElement.apply(document, arguments);
     },
-    createTextNode: function() {
+    createTextNode() {
       return document.createTextNode.apply(document, arguments);
     },
-    timer: new jasmine.Timer()
+    timer: new jasmine.Timer(),
   });
 
   env.addReporter(htmlReporter);
@@ -122,7 +130,9 @@ function initializePDFJS(callback) {
   // Filter which specs will be run by matching the start of the full name
   // against the `spec` query param.
   var specFilter = new jasmine.HtmlSpecFilter({
-    filterString: function() { return queryString.getParam('spec'); }
+    filterString() {
+      return queryString.getParam('spec');
+    },
   });
 
   env.specFilter = function(spec) {

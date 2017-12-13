@@ -1,7 +1,22 @@
-/* globals expect, it, describe, beforeEach, Name, Dict, Ref, RefSet, Cmd,
-           jasmine, isDict, isRefsEqual */
+/* Copyright 2017 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-'use strict';
+import {
+  Cmd, Dict, isCmd, isDict, isName, isRef, isRefsEqual, Name, Ref, RefSet
+} from '../../src/core/primitives';
+import { XRefMock } from './test_utils';
 
 describe('primitives', function() {
   describe('Name', function() {
@@ -9,6 +24,17 @@ describe('primitives', function() {
       var givenName = 'Font';
       var name = Name.get(givenName);
       expect(name.name).toEqual(givenName);
+    });
+
+    it('should create only one object for a name and cache it', function () {
+      var firstFont = Name.get('Font');
+      var secondFont = Name.get('Font');
+      var firstSubtype = Name.get('Subtype');
+      var secondSubtype = Name.get('Subtype');
+
+      expect(firstFont).toBe(secondFont);
+      expect(firstSubtype).toBe(secondSubtype);
+      expect(firstFont).not.toBe(firstSubtype);
     });
   });
 
@@ -24,6 +50,7 @@ describe('primitives', function() {
       var secondBT = Cmd.get('BT');
       var firstET = Cmd.get('ET');
       var secondET = Cmd.get('ET');
+
       expect(firstBT).toBe(secondBT);
       expect(firstET).toBe(secondET);
       expect(firstBT).not.toBe(firstET);
@@ -51,7 +78,7 @@ describe('primitives', function() {
     var testFontFile2 = 'file2';
     var testFontFile3 = 'file3';
 
-    beforeEach(function() {
+    beforeAll(function (done) {
       emptyDict = new Dict();
 
       dictWithSizeKey = new Dict();
@@ -61,6 +88,12 @@ describe('primitives', function() {
       dictWithManyKeys.set('FontFile', testFontFile);
       dictWithManyKeys.set('FontFile2', testFontFile2);
       dictWithManyKeys.set('FontFile3', testFontFile3);
+
+      done();
+    });
+
+    afterAll(function () {
+      emptyDict = dictWithSizeKey = dictWithManyKeys = null;
     });
 
     it('should return invalid values for unknown keys', function() {
@@ -104,6 +137,39 @@ describe('primitives', function() {
                              .toEqual(testFontFile);
     });
 
+    it('should asynchronously fetch unknown keys', function (done) {
+      var keyPromises = [
+        dictWithManyKeys.getAsync('Size'),
+        dictWithSizeKey.getAsync('FontFile', 'FontFile2', 'FontFile3')
+      ];
+
+      Promise.all(keyPromises).then(function (values) {
+        expect(values[0]).toBeUndefined();
+        expect(values[1]).toBeNull();
+        done();
+      }).catch(function (reason) {
+        done.fail(reason);
+      });
+    });
+
+    it('should asynchronously fetch correct values for multiple stored keys',
+        function (done) {
+      var keyPromises = [
+        dictWithManyKeys.getAsync('FontFile3'),
+        dictWithManyKeys.getAsync('FontFile2', 'FontFile3'),
+        dictWithManyKeys.getAsync('FontFile', 'FontFile2', 'FontFile3')
+      ];
+
+      Promise.all(keyPromises).then(function (values) {
+        expect(values[0]).toEqual(testFontFile3);
+        expect(values[1]).toEqual(testFontFile2);
+        expect(values[2]).toEqual(testFontFile);
+        done();
+      }).catch(function (reason) {
+        done.fail(reason);
+      });
+    });
+
     it('should callback for each stored key', function() {
       var callbackSpy = jasmine.createSpy('spy on callback in dictionary');
 
@@ -115,6 +181,72 @@ describe('primitives', function() {
       expect(callbackSpyCalls.argsFor(1)).toEqual(['FontFile2', testFontFile2]);
       expect(callbackSpyCalls.argsFor(2)).toEqual(['FontFile3', testFontFile3]);
       expect(callbackSpyCalls.count()).toEqual(3);
+    });
+
+    it('should handle keys pointing to indirect objects, both sync and async',
+        function (done) {
+      var fontRef = new Ref(1, 0);
+      var xref = new XRefMock([
+        { ref: fontRef, data: testFontFile, }
+      ]);
+      var fontDict = new Dict(xref);
+      fontDict.set('FontFile', fontRef);
+
+      expect(fontDict.getRaw('FontFile')).toEqual(fontRef);
+      expect(fontDict.get('FontFile', 'FontFile2', 'FontFile3')).
+        toEqual(testFontFile);
+
+      fontDict.getAsync('FontFile', 'FontFile2', 'FontFile3').then(
+          function (value) {
+        expect(value).toEqual(testFontFile);
+        done();
+      }).catch(function (reason) {
+        done.fail(reason);
+      });
+    });
+
+    it('should handle arrays containing indirect objects', function () {
+      var minCoordRef = new Ref(1, 0), maxCoordRef = new Ref(2, 0);
+      var minCoord = 0, maxCoord = 1;
+      var xref = new XRefMock([
+        { ref: minCoordRef, data: minCoord, },
+        { ref: maxCoordRef, data: maxCoord, }
+      ]);
+      var xObjectDict = new Dict(xref);
+      xObjectDict.set('BBox', [minCoord, maxCoord, minCoordRef, maxCoordRef]);
+
+      expect(xObjectDict.get('BBox')).toEqual(
+        [minCoord, maxCoord, minCoordRef, maxCoordRef]);
+      expect(xObjectDict.getArray('BBox')).toEqual(
+        [minCoord, maxCoord, minCoord, maxCoord]);
+    });
+
+    it('should get all key names', function () {
+      var expectedKeys = ['FontFile', 'FontFile2', 'FontFile3'];
+      var keys = dictWithManyKeys.getKeys();
+
+      expect(keys.sort()).toEqual(expectedKeys);
+    });
+
+    it('should create only one object for Dict.empty', function () {
+      var firstDictEmpty = Dict.empty;
+      var secondDictEmpty = Dict.empty;
+
+      expect(firstDictEmpty).toBe(secondDictEmpty);
+      expect(firstDictEmpty).not.toBe(emptyDict);
+    });
+
+    it('should correctly merge dictionaries', function () {
+      var expectedKeys = ['FontFile', 'FontFile2', 'FontFile3', 'Size'];
+
+      var fontFileDict = new Dict();
+      fontFileDict.set('FontFile', 'Type1 font file');
+      var mergedDict = Dict.merge(null,
+        [dictWithManyKeys, dictWithSizeKey, fontFileDict]);
+      var mergedKeys = mergedDict.getKeys();
+
+      expect(mergedKeys.sort()).toEqual(expectedKeys);
+      expect(mergedDict.get('FontFile')).toEqual(testFontFile);
     });
   });
 
@@ -146,9 +278,51 @@ describe('primitives', function() {
     });
   });
 
+  describe('isName', function () {
+    it('handles non-names', function () {
+      var nonName = {};
+      expect(isName(nonName)).toEqual(false);
+    });
+
+    it('handles names', function () {
+      var name = Name.get('Font');
+      expect(isName(name)).toEqual(true);
+    });
+
+    it('handles names with name check', function () {
+      var name = Name.get('Font');
+      expect(isName(name, 'Font')).toEqual(true);
+      expect(isName(name, 'Subtype')).toEqual(false);
+    });
+  });
+
+  describe('isCmd', function () {
+    it('handles non-commands', function () {
+      var nonCmd = {};
+      expect(isCmd(nonCmd)).toEqual(false);
+    });
+
+    it('handles commands', function () {
+      var cmd = Cmd.get('BT');
+      expect(isCmd(cmd)).toEqual(true);
+    });
+
+    it('handles commands with cmd check', function () {
+      var cmd = Cmd.get('BT');
+      expect(isCmd(cmd, 'BT')).toEqual(true);
+      expect(isCmd(cmd, 'ET')).toEqual(false);
+    });
+  });
+
   describe('isDict', function() {
+    it('handles non-dictionaries', function () {
+      var nonDict = {};
+      expect(isDict(nonDict)).toEqual(false);
+    });
+
     it('handles empty dictionaries with type check', function() {
-      var dict = new Dict();
+      var dict = Dict.empty;
+      expect(isDict(dict)).toEqual(true);
       expect(isDict(dict, 'Page')).toEqual(false);
     });
 
@@ -156,6 +330,19 @@ describe('primitives', function() {
       var dict = new Dict();
       dict.set('Type', Name.get('Page'));
       expect(isDict(dict, 'Page')).toEqual(true);
+      expect(isDict(dict, 'Contents')).toEqual(false);
+    });
+  });
+
+  describe('isRef', function () {
+    it('handles non-refs', function () {
+      var nonRef = {};
+      expect(isRef(nonRef)).toEqual(false);
+    });
+
+    it('handles refs', function () {
+      var ref = new Ref(1, 0);
+      expect(isRef(ref)).toEqual(true);
     });
   });
 

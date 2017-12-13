@@ -1,15 +1,30 @@
-/* globals jasmine, expect, it, describe, beforeEach, isArray, StringStream,
-           PostScriptParser, PostScriptLexer, PostScriptEvaluator,
-           PostScriptCompiler*/
+/* Copyright 2017 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-'use strict';
+import {
+  PostScriptCompiler, PostScriptEvaluator
+} from '../../src/core/function';
+import { PostScriptLexer, PostScriptParser } from '../../src/core/ps_parser';
+import { StringStream } from '../../src/core/stream';
 
 describe('function', function() {
   beforeEach(function() {
     jasmine.addMatchers({
-      toMatchArray: function(util, customEqualityTesters) {
+      toMatchArray(util, customEqualityTesters) {
         return {
-          compare: function (actual, expected) {
+          compare(actual, expected) {
             var result = {};
             if (actual.length !== expected.length) {
               result.pass = false;
@@ -20,7 +35,7 @@ describe('function', function() {
             result.pass = true;
             for (var i = 0; i < expected.length; i++) {
               var a = actual[i], b = expected[i];
-              if (isArray(b)) {
+              if (Array.isArray(b)) {
                 if (a.length !== b.length) {
                   result.pass = false;
                   break;
@@ -40,9 +55,9 @@ describe('function', function() {
               }
             }
             return result;
-          }
+          },
         };
-      }
+      },
     });
   });
 
@@ -90,8 +105,9 @@ describe('function', function() {
       expect(program).toMatchArray(expectedProgram);
     });
     it('handles missing brackets', function() {
-      expect(function() { parse('{'); }).toThrow(
-        new Error('Unexpected symbol: found undefined expected 1.'));
+      expect(function() {
+        parse('{');
+      }).toThrow(new Error('Unexpected symbol: found undefined expected 1.'));
     });
     it('handles junk after the end', function() {
       var number = 3.3;
@@ -433,7 +449,7 @@ describe('function', function() {
         expect(compiledCode).toBeNull();
       } else {
         expect(compiledCode).not.toBeNull();
-        /*jshint -W054 */
+        // eslint-disable-next-line no-new-func
         var fn = new Function('src', 'srcOffset', 'dest', 'destOffset',
                               compiledCode);
         for (var i = 0; i < samples.length; i++) {
@@ -446,78 +462,80 @@ describe('function', function() {
     }
 
     it('check compiled add', function() {
-      check([0.25, 0.5, 'add'], [], [0, 1], [{input: [], output: [0.75]}]);
-      check([0, 'add'], [0, 1], [0, 1], [{input: [0.25], output: [0.25]}]);
-      check([0.5, 'add'], [0, 1], [0, 1], [{input: [0.25], output: [0.75]}]);
+      check([0.25, 0.5, 'add'], [], [0, 1], [{ input: [], output: [0.75], }]);
+      check([0, 'add'], [0, 1], [0, 1], [{ input: [0.25], output: [0.25], }]);
+      check([0.5, 'add'], [0, 1], [0, 1], [{ input: [0.25], output: [0.75], }]);
       check([0, 'exch', 'add'], [0, 1], [0, 1],
-            [{input: [0.25], output: [0.25]}]);
+            [{ input: [0.25], output: [0.25], }]);
       check([0.5, 'exch', 'add'], [0, 1], [0, 1],
-            [{input: [0.25], output: [0.75]}]);
+            [{ input: [0.25], output: [0.75], }]);
       check(['add'], [0, 1, 0, 1], [0, 1],
-            [{input: [0.25, 0.5], output: [0.75]}]);
+            [{ input: [0.25, 0.5], output: [0.75], }]);
       check(['add'], [0, 1], [0, 1], null);
     });
     it('check compiled sub', function() {
-      check([0.5, 0.25, 'sub'], [], [0, 1], [{input: [], output: [0.25]}]);
-      check([0, 'sub'], [0, 1], [0, 1], [{input: [0.25], output: [0.25]}]);
-      check([0.5, 'sub'], [0, 1], [0, 1], [{input: [0.75], output: [0.25]}]);
+      check([0.5, 0.25, 'sub'], [], [0, 1], [{ input: [], output: [0.25], }]);
+      check([0, 'sub'], [0, 1], [0, 1], [{ input: [0.25], output: [0.25], }]);
+      check([0.5, 'sub'], [0, 1], [0, 1], [{ input: [0.75], output: [0.25], }]);
       check([0, 'exch', 'sub'], [0, 1], [-1, 1],
-            [{input: [0.25], output: [-0.25]}]);
+            [{ input: [0.25], output: [-0.25], }]);
       check([0.75, 'exch', 'sub'], [0, 1], [-1, 1],
-            [{input: [0.25], output: [0.5]}]);
+            [{ input: [0.25], output: [0.5], }]);
       check(['sub'], [0, 1, 0, 1], [-1, 1],
-            [{input: [0.25, 0.5], output: [-0.25]}]);
+            [{ input: [0.25, 0.5], output: [-0.25], }]);
       check(['sub'], [0, 1], [0, 1], null);
 
       check([1, 'dup', 3, 2, 'roll', 'sub', 'sub'], [0, 1], [0, 1],
-            [{input: [0.75], output: [0.75]}]);
+            [{ input: [0.75], output: [0.75], }]);
     });
     it('check compiled mul', function() {
-      check([0.25, 0.5, 'mul'], [], [0, 1], [{input: [], output: [0.125]}]);
-      check([0, 'mul'], [0, 1], [0, 1], [{input: [0.25], output: [0]}]);
-      check([0.5, 'mul'], [0, 1], [0, 1], [{input: [0.25], output: [0.125]}]);
-      check([1, 'mul'], [0, 1], [0, 1], [{input: [0.25], output: [0.25]}]);
-      check([0, 'exch', 'mul'], [0, 1], [0, 1], [{input: [0.25], output: [0]}]);
+      check([0.25, 0.5, 'mul'], [], [0, 1], [{ input: [], output: [0.125], }]);
+      check([0, 'mul'], [0, 1], [0, 1], [{ input: [0.25], output: [0], }]);
+      check([0.5, 'mul'], [0, 1], [0, 1],
+            [{ input: [0.25], output: [0.125], }]);
+      check([1, 'mul'], [0, 1], [0, 1], [{ input: [0.25], output: [0.25], }]);
+      check([0, 'exch', 'mul'], [0, 1], [0, 1],
+            [{ input: [0.25], output: [0], }]);
       check([0.5, 'exch', 'mul'], [0, 1], [0, 1],
-            [{input: [0.25], output: [0.125]}]);
+            [{ input: [0.25], output: [0.125], }]);
       check([1, 'exch', 'mul'], [0, 1], [0, 1],
-            [{input: [0.25], output: [0.25]}]);
+            [{ input: [0.25], output: [0.25], }]);
       check(['mul'], [0, 1, 0, 1], [0, 1],
-            [{input: [0.25, 0.5], output: [0.125]}]);
+            [{ input: [0.25, 0.5], output: [0.125], }]);
       check(['mul'], [0, 1], [0, 1], null);
     });
     it('check compiled max', function() {
       check(['dup', 0.75, 'gt', 7, 'jz', 'pop', 0.75], [0, 1], [0, 1],
-            [{input: [0.5], output: [0.5]}]);
+            [{ input: [0.5], output: [0.5], }]);
       check(['dup', 0.75, 'gt', 7, 'jz', 'pop', 0.75], [0, 1], [0, 1],
-            [{input: [1], output: [0.75]}]);
+            [{ input: [1], output: [0.75], }]);
       check(['dup', 0.75, 'gt', 5, 'jz', 'pop', 0.75], [0, 1], [0, 1], null);
     });
     it('check pop/roll/index', function() {
-      check([1, 'pop'], [0, 1], [0, 1], [{input: [0.5], output: [0.5]}]);
+      check([1, 'pop'], [0, 1], [0, 1], [{ input: [0.5], output: [0.5], }]);
       check([1, 3, -1, 'roll'], [0, 1, 0, 1], [0, 1, 0, 1, 0, 1],
-            [{input: [0.25, 0.5], output: [0.5, 1, 0.25]}]);
+            [{ input: [0.25, 0.5], output: [0.5, 1, 0.25], }]);
       check([1, 3, 1, 'roll'], [0, 1, 0, 1], [0, 1, 0, 1, 0, 1],
-            [{input: [0.25, 0.5], output: [1, 0.25, 0.5]}]);
+            [{ input: [0.25, 0.5], output: [1, 0.25, 0.5], }]);
       check([1, 3, 1.5, 'roll'], [0, 1, 0, 1], [0, 1, 0, 1, 0, 1], null);
       check([1, 1, 'index'], [0, 1], [0, 1, 0, 1, 0, 1],
-            [{input: [0.5], output: [0.5, 1, 0.5]}]);
+            [{ input: [0.5], output: [0.5, 1, 0.5], }]);
       check([1, 3, 'index', 'pop'], [0, 1], [0, 1], null);
       check([1, 0.5, 'index', 'pop'], [0, 1], [0, 1], null);
     });
     it('check input boundaries', function () {
-      check([], [0, 0.5], [0, 1], [{input: [1], output: [0.5]}]);
-      check([], [0.5, 1], [0, 1], [{input: [0], output: [0.5]}]);
+      check([], [0, 0.5], [0, 1], [{ input: [1], output: [0.5], }]);
+      check([], [0.5, 1], [0, 1], [{ input: [0], output: [0.5], }]);
       check(['dup'], [0.5, 0.75], [0, 1, 0, 1],
-            [{input: [0], output: [0.5, 0.5]}]);
-      check([], [100, 1001], [0, 10000], [{input: [1000], output: [1000]}]);
+            [{ input: [0], output: [0.5, 0.5], }]);
+      check([], [100, 1001], [0, 10000], [{ input: [1000], output: [1000], }]);
     });
     it('check output boundaries', function () {
-      check([], [0, 1], [0, 0.5], [{input: [1], output: [0.5]}]);
-      check([], [0, 1], [0.5, 1], [{input: [0], output: [0.5]}]);
+      check([], [0, 1], [0, 0.5], [{ input: [1], output: [0.5], }]);
+      check([], [0, 1], [0.5, 1], [{ input: [0], output: [0.5], }]);
       check(['dup'], [0, 1], [0.5, 1, 0.75, 1],
-            [{input: [0], output: [0.5, 0.75]}]);
-      check([], [0, 10000], [100, 1001], [{input: [1000], output: [1000]}]);
+            [{ input: [0], output: [0.5, 0.75], }]);
+      check([], [0, 10000], [100, 1001], [{ input: [1000], output: [1000], }]);
     });
     it('compile optimized', function () {
       var compiler = new PostScriptCompiler();

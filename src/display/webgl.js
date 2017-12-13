@@ -12,24 +12,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* jshint -W043 */
+/* eslint-disable no-multi-str */
 
-'use strict';
+import { shadow } from '../shared/util';
 
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs/display/webgl', ['exports', 'pdfjs/shared/util',
-      'pdfjs/display/dom_utils'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../shared/util.js'), require('./dom_utils.js'));
-  } else {
-    factory((root.pdfjsDisplayWebGL = {}), root.pdfjsSharedUtil,
-      root.pdfjsDisplayDOMUtils);
+class WebGLContext {
+  constructor({ enable = false, }) {
+    this._enabled = enable === true;
   }
-}(this, function (exports, sharedUtil, displayDOMUtils) {
 
-var shadow = sharedUtil.shadow;
-var getDefaultSetting = displayDOMUtils.getDefaultSetting;
+  get isEnabled() {
+    let enabled = this._enabled;
+    if (enabled) {
+      enabled = WebGLUtils.tryInitGL();
+    }
+    return shadow(this, 'isEnabled', enabled);
+  }
+
+  composeSMask({ layer, mask, properties, }) {
+    return WebGLUtils.composeSMask(layer, mask, properties);
+  }
+
+  drawFigures({ width, height, backgroundColor, figures, context, }) {
+    return WebGLUtils.drawFigures(width, height, backgroundColor, figures,
+                                  context);
+  }
+
+  clear() {
+    WebGLUtils.cleanup();
+  }
+}
 
 var WebGLUtils = (function WebGLUtilsClosure() {
   function loadShader(gl, code, shaderType) {
@@ -83,9 +95,11 @@ var WebGLUtils = (function WebGLUtilsClosure() {
     if (currentGL) {
       return;
     }
+
+    // The temporary canvas is used in the WebGL context.
     currentCanvas = document.createElement('canvas');
     currentGL = currentCanvas.getContext('webgl',
-      { premultipliedalpha: false });
+      { premultipliedalpha: false, });
   }
 
   var smaskVertexShaderCode = '\
@@ -165,12 +179,12 @@ var WebGLUtils = (function WebGLUtilsClosure() {
     var texCoordBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-      0.0,  0.0,
-      1.0,  0.0,
-      0.0,  1.0,
-      0.0,  1.0,
-      1.0,  0.0,
-      1.0,  1.0]), gl.STATIC_DRAW);
+      0.0, 0.0,
+      1.0, 0.0,
+      0.0, 1.0,
+      0.0, 1.0,
+      1.0, 0.0,
+      1.0, 1.0]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(texCoordLocation);
     gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 
@@ -186,7 +200,7 @@ var WebGLUtils = (function WebGLUtilsClosure() {
     if (!smaskCache) {
       initSmaskGL();
     }
-    var cache = smaskCache,canvas = cache.canvas, gl = cache.gl;
+    var cache = smaskCache, canvas = cache.canvas, gl = cache.gl;
     canvas.width = width;
     canvas.height = height;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -417,36 +431,34 @@ var WebGLUtils = (function WebGLUtilsClosure() {
     return canvas;
   }
 
-  function cleanup() {
-    if (smaskCache && smaskCache.canvas) {
-      smaskCache.canvas.width = 0;
-      smaskCache.canvas.height = 0;
-    }
-    if (figuresCache && figuresCache.canvas) {
-      figuresCache.canvas.width = 0;
-      figuresCache.canvas.height = 0;
-    }
-    smaskCache = null;
-    figuresCache = null;
-  }
-
   return {
-    get isEnabled() {
-      if (getDefaultSetting('disableWebGL')) {
-        return false;
-      }
-      var enabled = false;
+    tryInitGL() {
       try {
         generateGL();
-        enabled = !!currentGL;
-      } catch (e) { }
-      return shadow(this, 'isEnabled', enabled);
+        return !!currentGL;
+      } catch (ex) { }
+      return false;
     },
-    composeSMask: composeSMask,
-    drawFigures: drawFigures,
-    clear: cleanup
+
+    composeSMask,
+
+    drawFigures,
+
+    cleanup() {
+      if (smaskCache && smaskCache.canvas) {
+        smaskCache.canvas.width = 0;
+        smaskCache.canvas.height = 0;
+      }
+      if (figuresCache && figuresCache.canvas) {
+        figuresCache.canvas.width = 0;
+        figuresCache.canvas.height = 0;
+      }
+      smaskCache = null;
+      figuresCache = null;
+    },
   };
 })();
 
-exports.WebGLUtils = WebGLUtils;
-}));
+export {
+  WebGLContext,
+};

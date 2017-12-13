@@ -13,40 +13,34 @@
  * limitations under the License.
  */
 
-'use strict';
+import {
+  log2, readInt8, readUint16, readUint32, shadow
+} from '../shared/util';
+import { ArithmeticDecoder } from './arithmetic_decoder';
 
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs/core/jbig2', ['exports', 'pdfjs/shared/util',
-      'pdfjs/core/arithmetic_decoder'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../shared/util.js'),
-      require('./arithmetic_decoder.js'));
-  } else {
-    factory((root.pdfjsCoreJbig2 = {}), root.pdfjsSharedUtil,
-      root.pdfjsCoreArithmeticDecoder);
+let Jbig2Error = (function Jbig2ErrorClosure() {
+  function Jbig2Error(msg) {
+    this.message = 'JBIG2 error: ' + msg;
   }
-}(this, function (exports, sharedUtil, coreArithmeticDecoder) {
 
-var error = sharedUtil.error;
-var log2 = sharedUtil.log2;
-var readInt8 = sharedUtil.readInt8;
-var readUint16 = sharedUtil.readUint16;
-var readUint32 = sharedUtil.readUint32;
-var shadow = sharedUtil.shadow;
-var ArithmeticDecoder = coreArithmeticDecoder.ArithmeticDecoder;
+  Jbig2Error.prototype = new Error();
+  Jbig2Error.prototype.name = 'Jbig2Error';
+  Jbig2Error.constructor = Jbig2Error;
+
+  return Jbig2Error;
+})();
 
 var Jbig2Image = (function Jbig2ImageClosure() {
   // Utility data structures
   function ContextCache() {}
 
   ContextCache.prototype = {
-    getContexts: function(id) {
+    getContexts(id) {
       if (id in this) {
         return this[id];
       }
       return (this[id] = new Int8Array(1 << 16));
-    }
+    },
   };
 
   function DecodingContext(data, start, end) {
@@ -63,7 +57,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
     get contextCache() {
       var cache = new ContextCache();
       return shadow(this, 'contextCache', cache);
-    }
+    },
   };
 
   // Annex A. Arithmetic Integer Decoding Procedure
@@ -117,7 +111,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
   var SegmentTypes = [
     'SymbolDictionary', null, null, null, 'IntermediateTextRegion', null,
     'ImmediateTextRegion', 'ImmediateLosslessTextRegion', null, null, null,
-    null, null, null, null, null, 'patternDictionary', null, null, null,
+    null, null, null, null, null, 'PatternDictionary', null, null, null,
     'IntermediateHalftoneRegion', null, 'ImmediateHalftoneRegion',
     'ImmediateLosslessHalftoneRegion', null, null, null, null, null, null, null,
     null, null, null, null, null, 'IntermediateGenericRegion', null,
@@ -131,29 +125,32 @@ var Jbig2Image = (function Jbig2ImageClosure() {
   ];
 
   var CodingTemplates = [
-    [{x: -1, y: -2}, {x: 0, y: -2}, {x: 1, y: -2}, {x: -2, y: -1},
-     {x: -1, y: -1}, {x: 0, y: -1}, {x: 1, y: -1}, {x: 2, y: -1},
-     {x: -4, y: 0}, {x: -3, y: 0}, {x: -2, y: 0}, {x: -1, y: 0}],
-    [{x: -1, y: -2}, {x: 0, y: -2}, {x: 1, y: -2}, {x: 2, y: -2},
-     {x: -2, y: -1}, {x: -1, y: -1}, {x: 0, y: -1}, {x: 1, y: -1},
-     {x: 2, y: -1}, {x: -3, y: 0}, {x: -2, y: 0}, {x: -1, y: 0}],
-    [{x: -1, y: -2}, {x: 0, y: -2}, {x: 1, y: -2}, {x: -2, y: -1},
-     {x: -1, y: -1}, {x: 0, y: -1}, {x: 1, y: -1}, {x: -2, y: 0},
-     {x: -1, y: 0}],
-    [{x: -3, y: -1}, {x: -2, y: -1}, {x: -1, y: -1}, {x: 0, y: -1},
-     {x: 1, y: -1}, {x: -4, y: 0}, {x: -3, y: 0}, {x: -2, y: 0}, {x: -1, y: 0}]
+    [{ x: -1, y: -2, }, { x: 0, y: -2, }, { x: 1, y: -2, }, { x: -2, y: -1, },
+     { x: -1, y: -1, }, { x: 0, y: -1, }, { x: 1, y: -1, }, { x: 2, y: -1, },
+     { x: -4, y: 0, }, { x: -3, y: 0, }, { x: -2, y: 0, }, { x: -1, y: 0, }],
+    [{ x: -1, y: -2, }, { x: 0, y: -2, }, { x: 1, y: -2, }, { x: 2, y: -2, },
+     { x: -2, y: -1, }, { x: -1, y: -1, }, { x: 0, y: -1, }, { x: 1, y: -1, },
+     { x: 2, y: -1, }, { x: -3, y: 0, }, { x: -2, y: 0, }, { x: -1, y: 0, }],
+    [{ x: -1, y: -2, }, { x: 0, y: -2, }, { x: 1, y: -2, }, { x: -2, y: -1, },
+     { x: -1, y: -1, }, { x: 0, y: -1, }, { x: 1, y: -1, }, { x: -2, y: 0, },
+     { x: -1, y: 0, }],
+    [{ x: -3, y: -1, }, { x: -2, y: -1, }, { x: -1, y: -1, }, { x: 0, y: -1, },
+     { x: 1, y: -1, }, { x: -4, y: 0, }, { x: -3, y: 0, }, { x: -2, y: 0, },
+     { x: -1, y: 0, }]
   ];
 
   var RefinementTemplates = [
     {
-      coding: [{x: 0, y: -1}, {x: 1, y: -1}, {x: -1, y: 0}],
-      reference: [{x: 0, y: -1}, {x: 1, y: -1}, {x: -1, y: 0}, {x: 0, y: 0},
-                  {x: 1, y: 0}, {x: -1, y: 1}, {x: 0, y: 1}, {x: 1, y: 1}]
+      coding: [{ x: 0, y: -1, }, { x: 1, y: -1, }, { x: -1, y: 0, }],
+      reference: [{ x: 0, y: -1, }, { x: 1, y: -1, }, { x: -1, y: 0, },
+                  { x: 0, y: 0, }, { x: 1, y: 0, }, { x: -1, y: 1, },
+                  { x: 0, y: 1, }, { x: 1, y: 1, }],
     },
     {
-      coding: [{x: -1, y: -1}, {x: 0, y: -1}, {x: 1, y: -1}, {x: -1, y: 0}],
-      reference: [{x: 0, y: -1}, {x: -1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0},
-                  {x: 0, y: 1}, {x: 1, y: 1}]
+      coding: [{ x: -1, y: -1, }, { x: 0, y: -1, }, { x: 1, y: -1, },
+               { x: -1, y: 0, }],
+      reference: [{ x: 0, y: -1, }, { x: -1, y: 0, }, { x: 0, y: 0, },
+                  { x: 1, y: 0, }, { x: 0, y: 1, }, { x: 1, y: 1, }],
     }
   ];
 
@@ -209,7 +206,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
   function decodeBitmap(mmr, width, height, templateIndex, prediction, skip, at,
                         decodingContext) {
     if (mmr) {
-      error('JBIG2 error: MMR encoding is not supported');
+      throw new Jbig2Error('MMR encoding is not supported');
     }
 
     // Use optimized version for the most common case
@@ -376,7 +373,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
         var sltp = decoder.readBit(contexts, pseudoPixelContext);
         ltp ^= sltp;
         if (ltp) {
-          error('JBIG2 error: prediction is not supported');
+          throw new Jbig2Error('prediction is not supported');
         }
       }
       var row = new Uint8Array(width);
@@ -394,8 +391,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           }
         }
         for (k = 0; k < referenceTemplateLength; k++) {
-          i0 = i + referenceTemplateY[k] + offsetY;
-          j0 = j + referenceTemplateX[k] + offsetX;
+          i0 = i + referenceTemplateY[k] - offsetY;
+          j0 = j + referenceTemplateX[k] - offsetX;
           if (i0 < 0 || i0 >= referenceHeight || j0 < 0 ||
               j0 >= referenceWidth) {
             contextLabel <<= 1; // out of bound pixel
@@ -418,7 +415,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                                   refinementTemplateIndex, refinementAt,
                                   decodingContext) {
     if (huffman) {
-      error('JBIG2 error: huffman is not supported');
+      throw new Jbig2Error('huffman is not supported');
     }
 
     var newSymbols = [];
@@ -432,14 +429,12 @@ var Jbig2Image = (function Jbig2ImageClosure() {
       var deltaHeight = decodeInteger(contextCache, 'IADH', decoder); // 6.5.6
       currentHeight += deltaHeight;
       var currentWidth = 0;
-      var totalWidth = 0;
       while (true) {
         var deltaWidth = decodeInteger(contextCache, 'IADW', decoder); // 6.5.7
         if (deltaWidth === null) {
           break; // OOB
         }
         currentWidth += deltaWidth;
-        totalWidth += currentWidth;
         var bitmap;
         if (refinement) {
           // 6.5.8.2 Refinement/aggregate-coded symbol bitmap
@@ -447,13 +442,13 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           if (numberOfInstances > 1) {
             bitmap = decodeTextRegion(huffman, refinement,
                                       currentWidth, currentHeight, 0,
-                                      numberOfInstances, 1, //strip size
+                                      numberOfInstances, 1, // strip size
                                       symbols.concat(newSymbols),
                                       symbolCodeLength,
-                                      0, //transposed
-                                      0, //ds offset
-                                      1, //top left 7.4.3.1.1
-                                      0, //OR operator
+                                      0, // transposed
+                                      0, // ds offset
+                                      1, // top left 7.4.3.1.1
+                                      0, // OR operator
                                       huffmanTables,
                                       refinementTemplateIndex, refinementAt,
                                       decodingContext);
@@ -507,7 +502,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                             refinementTemplateIndex, refinementAt,
                             decodingContext) {
     if (huffman) {
-      error('JBIG2 error: huffman is not supported');
+      throw new Jbig2Error('huffman is not supported');
     }
 
     // Prepare bitmap
@@ -557,8 +552,9 @@ var Jbig2Image = (function Jbig2ImageClosure() {
             (rdh >> 1) + rdy, false, refinementAt,
             decodingContext);
         }
-        var offsetT = t - ((referenceCorner & 1) ? 0 : symbolHeight);
-        var offsetS = currentS - ((referenceCorner & 2) ? symbolWidth : 0);
+        var offsetT = t - ((referenceCorner & 1) ? 0 : (symbolHeight - 1));
+        var offsetS = currentS -
+          ((referenceCorner & 2) ? (symbolWidth - 1) : 0);
         var s2, t2, symbolRow;
         if (transposed) {
           // Place Symbol Bitmap from T1,S1
@@ -583,8 +579,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                 }
                 break;
               default:
-                error('JBIG2 error: operator ' + combinationOperator +
-                      ' is not supported');
+                throw new Jbig2Error(
+                  `operator ${combinationOperator} is not supported`);
             }
           }
           currentS += symbolHeight - 1;
@@ -607,8 +603,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                 }
                 break;
               default:
-                error('JBIG2 error: operator ' + combinationOperator +
-                      ' is not supported');
+                throw new Jbig2Error(
+                  `operator ${combinationOperator} is not supported`);
             }
           }
           currentS += symbolWidth - 1;
@@ -624,13 +620,155 @@ var Jbig2Image = (function Jbig2ImageClosure() {
     return bitmap;
   }
 
+  function decodePatternDictionary(mmr, patternWidth, patternHeight,
+                                   maxPatternIndex, template, decodingContext) {
+    let at = [];
+    at.push({
+      x: -patternWidth,
+      y: 0,
+    });
+    if (template === 0) {
+      at.push({
+        x: -3,
+        y: -1,
+      });
+      at.push({
+        x: 2,
+        y: -2,
+      });
+      at.push({
+        x: -2,
+        y: -2,
+      });
+    }
+    let collectiveWidth = (maxPatternIndex + 1) * patternWidth;
+    let collectiveBitmap = decodeBitmap(mmr, collectiveWidth, patternHeight,
+                                        template, false, null, at,
+                                        decodingContext);
+    // Divide collective bitmap into patterns.
+    let patterns = [], i = 0, patternBitmap, xMin, xMax, y;
+    while (i <= maxPatternIndex) {
+      patternBitmap = [];
+      xMin = patternWidth * i;
+      xMax = xMin + patternWidth;
+      for (y = 0; y < patternHeight; y++) {
+        patternBitmap.push(collectiveBitmap[y].subarray(xMin, xMax));
+      }
+      patterns.push(patternBitmap);
+      i++;
+    }
+    return patterns;
+  }
+
+  function decodeHalftoneRegion(mmr, patterns, template, regionWidth,
+                                regionHeight, defaultPixelValue, enableSkip,
+                                combinationOperator, gridWidth, gridHeight,
+                                gridOffsetX, gridOffsetY, gridVectorX,
+                                gridVectorY, decodingContext) {
+    let skip = null;
+    if (enableSkip) {
+      throw new Jbig2Error('skip is not supported');
+    }
+    if (combinationOperator !== 0) {
+      throw new Jbig2Error('operator ' + combinationOperator +
+        ' is not supported in halftone region');
+    }
+
+    // Prepare bitmap.
+    let regionBitmap = [];
+    let i, j, row;
+    for (i = 0; i < regionHeight; i++) {
+      row = new Uint8Array(regionWidth);
+      if (defaultPixelValue) {
+        for (j = 0; j < regionWidth; j++) {
+          row[j] = defaultPixelValue;
+        }
+      }
+      regionBitmap.push(row);
+    }
+
+    let numberOfPatterns = patterns.length;
+    let pattern0 = patterns[0];
+    let patternWidth = pattern0[0].length, patternHeight = pattern0.length;
+    let bitsPerValue = log2(numberOfPatterns);
+    let at = [];
+    at.push({
+      x: (template <= 1) ? 3 : 2,
+      y: -1,
+    });
+    if (template === 0) {
+      at.push({
+        x: -3,
+        y: -1,
+      });
+      at.push({
+        x: 2,
+        y: -2,
+      });
+      at.push({
+        x: -2,
+        y: -2,
+      });
+    }
+    // Annex C. Gray-scale Image Decoding Procedure.
+    let grayScaleBitPlanes = [];
+    for (i = bitsPerValue - 1; i >= 0; i--) {
+      grayScaleBitPlanes[i] = decodeBitmap(mmr, gridWidth, gridHeight,
+                                           template, false, skip, at,
+                                           decodingContext);
+    }
+    // 6.6.5.2 Rendering the patterns.
+    let mg, ng, bit, patternIndex, patternBitmap, x, y, patternRow, regionRow;
+    for (mg = 0; mg < gridHeight; mg++) {
+      for (ng = 0; ng < gridWidth; ng++) {
+        bit = 0;
+        patternIndex = 0;
+        for (j = bitsPerValue - 1; j >= 0; j--) {
+          bit = grayScaleBitPlanes[j][mg][ng] ^ bit; // Gray decoding
+          patternIndex |= bit << j;
+        }
+        patternBitmap = patterns[patternIndex];
+        x = (gridOffsetX + mg * gridVectorY + ng * gridVectorX) >> 8;
+        y = (gridOffsetY + mg * gridVectorX - ng * gridVectorY) >> 8;
+        // Draw patternBitmap at (x, y).
+        if (x >= 0 && x + patternWidth <= regionWidth && y >= 0 &&
+            y + patternHeight <= regionHeight) {
+          for (i = 0; i < patternHeight; i++) {
+            regionRow = regionBitmap[y + i];
+            patternRow = patternBitmap[i];
+            for (j = 0; j < patternWidth; j++) {
+              regionRow[x + j] |= patternRow[j];
+            }
+          }
+        } else {
+          let regionX, regionY;
+          for (i = 0; i < patternHeight; i++) {
+            regionY = y + i;
+            if (regionY < 0 || regionY >= regionHeight) {
+              continue;
+            }
+            regionRow = regionBitmap[regionY];
+            patternRow = patternBitmap[i];
+            for (j = 0; j < patternWidth; j++) {
+              regionX = x + j;
+              if (regionX >= 0 && regionX < regionWidth) {
+                regionRow[regionX] |= patternRow[j];
+              }
+            }
+          }
+        }
+      }
+    }
+    return regionBitmap;
+  }
+
   function readSegmentHeader(data, start) {
     var segmentHeader = {};
     segmentHeader.number = readUint32(data, start);
     var flags = data[start + 4];
     var segmentType = flags & 0x3F;
     if (!SegmentTypes[segmentType]) {
-      error('JBIG2 error: invalid segment type: ' + segmentType);
+      throw new Jbig2Error('invalid segment type: ' + segmentType);
     }
     segmentHeader.type = segmentType;
     segmentHeader.typeName = SegmentTypes[segmentType];
@@ -650,7 +788,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
         retainBits.push(data[position++]);
       }
     } else if (referredFlags === 5 || referredFlags === 6) {
-      error('JBIG2 error: invalid referred-to flags');
+      throw new Jbig2Error('invalid referred-to flags');
     }
 
     segmentHeader.retainBits = retainBits;
@@ -704,10 +842,10 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           }
         }
         if (segmentHeader.length === 0xFFFFFFFF) {
-          error('JBIG2 error: segment end was not found');
+          throw new Jbig2Error('segment end was not found');
         }
       } else {
-        error('JBIG2 error: invalid unknown segment length');
+        throw new Jbig2Error('invalid unknown segment length');
       }
     }
     segmentHeader.headerEnd = position;
@@ -722,7 +860,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
       position = segmentHeader.headerEnd;
       var segment = {
         header: segmentHeader,
-        data: data
+        data,
       };
       if (!header.randomAccess) {
         segment.start = position;
@@ -751,7 +889,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
       height: readUint32(data, start + 4),
       x: readUint32(data, start + 8),
       y: readUint32(data, start + 12),
-      combinationOperator: data[start + 16] & 7
+      combinationOperator: data[start + 16] & 7,
     };
   }
   var RegionSegmentInformationFieldLength = 17;
@@ -783,7 +921,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           for (i = 0; i < atLength; i++) {
             at.push({
               x: readInt8(data, position),
-              y: readInt8(data, position + 1)
+              y: readInt8(data, position + 1),
             });
             position += 2;
           }
@@ -794,7 +932,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           for (i = 0; i < 2; i++) {
             at.push({
               x: readInt8(data, position),
-              y: readInt8(data, position + 1)
+              y: readInt8(data, position + 1),
             });
             position += 2;
           }
@@ -841,7 +979,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           for (i = 0; i < 2; i++) {
             at.push({
               x: readInt8(data, position),
-              y: readInt8(data, position + 1)
+              y: readInt8(data, position + 1),
             });
             position += 2;
           }
@@ -851,9 +989,47 @@ var Jbig2Image = (function Jbig2ImageClosure() {
         position += 4;
         // TODO 7.4.3.1.7 Symbol ID Huffman table decoding
         if (textRegion.huffman) {
-          error('JBIG2 error: huffman is not supported');
+          throw new Jbig2Error('huffman is not supported');
         }
         args = [textRegion, header.referredTo, data, position, end];
+        break;
+      case 16: // PatternDictionary
+        // 7.4.4. Pattern dictionary segment syntax
+        let patternDictionary = {};
+        let patternDictionaryFlags = data[position++];
+        patternDictionary.mmr = !!(patternDictionaryFlags & 1);
+        patternDictionary.template = (patternDictionaryFlags >> 1) & 3;
+        patternDictionary.patternWidth = data[position++];
+        patternDictionary.patternHeight = data[position++];
+        patternDictionary.maxPatternIndex = readUint32(data, position);
+        position += 4;
+        args = [patternDictionary, header.number, data, position, end];
+        break;
+      case 22: // ImmediateHalftoneRegion
+      case 23: // ImmediateLosslessHalftoneRegion
+        // 7.4.5 Halftone region segment syntax
+        let halftoneRegion = {};
+        halftoneRegion.info = readRegionSegmentInformation(data, position);
+        position += RegionSegmentInformationFieldLength;
+        let halftoneRegionFlags = data[position++];
+        halftoneRegion.mmr = !!(halftoneRegionFlags & 1);
+        halftoneRegion.template = (halftoneRegionFlags >> 1) & 3;
+        halftoneRegion.enableSkip = !!(halftoneRegionFlags & 8);
+        halftoneRegion.combinationOperator = (halftoneRegionFlags >> 4) & 7;
+        halftoneRegion.defaultPixelValue = (halftoneRegionFlags >> 7) & 1;
+        halftoneRegion.gridWidth = readUint32(data, position);
+        position += 4;
+        halftoneRegion.gridHeight = readUint32(data, position);
+        position += 4;
+        halftoneRegion.gridOffsetX = readUint32(data, position) & 0xFFFFFFFF;
+        position += 4;
+        halftoneRegion.gridOffsetY = readUint32(data, position) & 0xFFFFFFFF;
+        position += 4;
+        halftoneRegion.gridVectorX = readUint16(data, position);
+        position += 2;
+        halftoneRegion.gridVectorY = readUint16(data, position);
+        position += 2;
+        args = [halftoneRegion, header.referredTo, data, position, end];
         break;
       case 38: // ImmediateGenericRegion
       case 39: // ImmediateLosslessGenericRegion
@@ -870,7 +1046,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           for (i = 0; i < atLength; i++) {
             at.push({
               x: readInt8(data, position),
-              y: readInt8(data, position + 1)
+              y: readInt8(data, position + 1),
             });
             position += 2;
           }
@@ -883,13 +1059,13 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           width: readUint32(data, position),
           height: readUint32(data, position + 4),
           resolutionX: readUint32(data, position + 8),
-          resolutionY: readUint32(data, position + 12)
+          resolutionY: readUint32(data, position + 12),
         };
         if (pageInfo.height === 0xFFFFFFFF) {
           delete pageInfo.height;
         }
         var pageSegmentFlags = data[position + 16];
-        var pageStripingInformation = readUint16(data, position + 17);
+        readUint16(data, position + 17); // pageStripingInformation
         pageInfo.lossless = !!(pageSegmentFlags & 1);
         pageInfo.refinement = !!(pageSegmentFlags & 2);
         pageInfo.defaultPixelValue = (pageSegmentFlags >> 2) & 1;
@@ -908,8 +1084,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                // are comments and can be ignored.
         break;
       default:
-        error('JBIG2 error: segment type ' + header.typeName + '(' +
-              header.type + ') is not implemented');
+        throw new Jbig2Error(`segment type ${header.typeName}(${header.type})` +
+                             ' is not implemented');
     }
     var callbackName = 'on' + header.typeName;
     if (callbackName in visitor) {
@@ -923,13 +1099,13 @@ var Jbig2Image = (function Jbig2ImageClosure() {
     }
   }
 
-  function parseJbig2(data, start, end) {
+  function parseJbig2(data, start, end) { // eslint-disable-line no-unused-vars
     var position = start;
     if (data[position] !== 0x97 || data[position + 1] !== 0x4A ||
         data[position + 2] !== 0x42 || data[position + 3] !== 0x32 ||
         data[position + 4] !== 0x0D || data[position + 5] !== 0x0A ||
         data[position + 6] !== 0x1A || data[position + 7] !== 0x0A) {
-      error('JBIG2 error: invalid header');
+      throw new Jbig2Error('invalid header');
     }
     var header = {};
     position += 8;
@@ -939,8 +1115,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
       header.numberOfPages = readUint32(data, position);
       position += 4;
     }
-    var segments = readSegments(header, data, position, end);
-    error('Not implemented');
+    readSegments(header, data, position, end); // segments
+    throw new Error('Not implemented');
     // processSegments(segments, new SimpleSegmentVisitor());
   }
 
@@ -960,7 +1136,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
     onPageInformation: function SimpleSegmentVisitor_onPageInformation(info) {
       this.currentPageInfo = info;
       var rowSize = (info.width + 7) >> 3;
-      var buffer = new Uint8Array(rowSize * info.height);
+      var buffer = new Uint8ClampedArray(rowSize * info.height);
       // The contents of ArrayBuffers are initialized to 0.
       // Fill the buffer with 0xFF only if info.defaultPixelValue is set
       if (info.defaultPixelValue) {
@@ -977,7 +1153,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
       var combinationOperator = pageInfo.combinationOperatorOverride ?
         regionInfo.combinationOperator : pageInfo.combinationOperator;
       var buffer = this.buffer;
-      var mask0 =  128 >> (regionInfo.x & 7);
+      var mask0 = 128 >> (regionInfo.x & 7);
       var offset0 = regionInfo.y * rowSize + (regionInfo.x >> 3);
       var i, j, mask, offset;
       switch (combinationOperator) {
@@ -1016,8 +1192,8 @@ var Jbig2Image = (function Jbig2ImageClosure() {
           }
           break;
         default:
-          error('JBIG2 error: operator ' + combinationOperator +
-                ' is not supported');
+          throw new Jbig2Error(
+            `operator ${combinationOperator} is not supported`);
       }
     },
     onImmediateGenericRegion:
@@ -1041,7 +1217,7 @@ var Jbig2Image = (function Jbig2ImageClosure() {
                                                        data, start, end) {
       var huffmanTables;
       if (dictionary.huffman) {
-        error('JBIG2 error: huffman is not supported');
+        throw new Jbig2Error('huffman is not supported');
       }
 
       // Combines exported symbols from all referred segments
@@ -1090,7 +1266,33 @@ var Jbig2Image = (function Jbig2ImageClosure() {
     onImmediateLosslessTextRegion:
       function SimpleSegmentVisitor_onImmediateLosslessTextRegion() {
       this.onImmediateTextRegion.apply(this, arguments);
-    }
+    },
+    onPatternDictionary(dictionary, currentSegment, data, start, end) {
+      let patterns = this.patterns;
+      if (!patterns) {
+        this.patterns = patterns = {};
+      }
+      let decodingContext = new DecodingContext(data, start, end);
+      patterns[currentSegment] = decodePatternDictionary(dictionary.mmr,
+        dictionary.patternWidth, dictionary.patternHeight,
+        dictionary.maxPatternIndex, dictionary.template, decodingContext);
+    },
+    onImmediateHalftoneRegion(region, referredSegments, data, start, end) {
+      // HalftoneRegion refers to exactly one PatternDictionary.
+      let patterns = this.patterns[referredSegments[0]];
+      let regionInfo = region.info;
+      let decodingContext = new DecodingContext(data, start, end);
+      let bitmap = decodeHalftoneRegion(region.mmr, patterns,
+        region.template, regionInfo.width, regionInfo.height,
+        region.defaultPixelValue, region.enableSkip, region.combinationOperator,
+        region.gridWidth, region.gridHeight, region.gridOffsetX,
+        region.gridOffsetY, region.gridVectorX, region.gridVectorY,
+        decodingContext);
+      this.drawBitmap(regionInfo, bitmap);
+    },
+    onImmediateLosslessHalftoneRegion() {
+      this.onImmediateHalftoneRegion.apply(this, arguments);
+    },
   };
 
   function Jbig2Image() {}
@@ -1098,11 +1300,12 @@ var Jbig2Image = (function Jbig2ImageClosure() {
   Jbig2Image.prototype = {
     parseChunks: function Jbig2Image_parseChunks(chunks) {
       return parseJbig2Chunks(chunks);
-    }
+    },
   };
 
   return Jbig2Image;
 })();
 
-exports.Jbig2Image = Jbig2Image;
-}));
+export {
+  Jbig2Image,
+};

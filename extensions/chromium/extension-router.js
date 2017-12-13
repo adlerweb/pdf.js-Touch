@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* globals chrome */
 
 'use strict';
 
@@ -27,6 +26,8 @@ limitations under the License.
     'ftp',
     'file',
     'chrome-extension',
+    'blob',
+    'data',
     // Chromium OS
     'filesystem',
     // Chromium OS, shorthand for filesystem:<origin>/external/
@@ -69,14 +70,14 @@ limitations under the License.
         url += details.url.slice(i);
       }
       console.log('Redirecting ' + details.url + ' to ' + url);
-      return { redirectUrl: url };
+      return { redirectUrl: url, };
     }
   }, {
     types: ['main_frame', 'sub_frame'],
     urls: schemes.map(function(scheme) {
       // Format: "chrome-extension://[EXTENSIONID]/<scheme>*"
       return CRX_BASE_URL + scheme + '*';
-    })
+    }),
   }, ['blocking']);
 
   // When session restore is used, viewer pages may be loaded before the
@@ -84,7 +85,7 @@ limitations under the License.
   // Or the extension could have been crashed (OOM), leaving a sad tab behind.
   // Reload these tabs.
   chrome.tabs.query({
-    url: CRX_BASE_URL + '*:*'
+    url: CRX_BASE_URL + '*:*',
   }, function(tabsFromLastSession) {
     for (var i = 0; i < tabsFromLastSession.length; ++i) {
       chrome.tabs.reload(tabsFromLastSession[i].id);
@@ -106,7 +107,7 @@ limitations under the License.
           url: chrome.runtime.getURL('restoretab.html') +
             '?' + encodeURIComponent(url) +
             '#' + encodeURIComponent(localStorage.getItem(key)),
-          active: !isHidden
+          active: !isHidden,
         });
       }
       localStorage.removeItem(key);

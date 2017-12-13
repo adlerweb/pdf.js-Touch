@@ -13,7 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* globals chrome, getViewerURL */
+/* eslint strict: ["error", "function"] */
+/* import-globals-from pdfHandler.js */
 
 (function() {
   'use strict';
@@ -48,7 +49,7 @@ limitations under the License.
       chrome.windows.getLastFocused(function(chromeWindow) {
         var windowId = chromeWindow && chromeWindow.id;
         if (windowId) {
-          chrome.windows.update(windowId, { focused: true });
+          chrome.windows.update(windowId, { focused: true, });
         }
         openViewer(windowId, fileEntries);
       });
@@ -76,7 +77,7 @@ limitations under the License.
       chrome.tabs.create({
         windowId: windowId,
         active: true,
-        url: url
+        url: url,
       }, function() {
         openViewer(windowId, fileEntries);
       });
@@ -84,7 +85,7 @@ limitations under the License.
       chrome.windows.create({
         type: 'normal',
         focused: true,
-        url: url
+        url: url,
       }, function(chromeWindow) {
         openViewer(chromeWindow.id, fileEntries);
       });

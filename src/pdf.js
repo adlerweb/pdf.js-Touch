@@ -12,66 +12,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* jshint globalstrict: false */
-/* umdutils ignore */
+/* eslint-disable no-unused-vars */
 
-(function (root, factory) {
-  'use strict';
-  if (typeof define === 'function' && define.amd) {
-//#expand define('__BUNDLE_AMD_NAME__', ['exports'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports);
-  } else {
-//#expand factory((root.__BUNDLE_JS_NAME__ = {}));
+'use strict';
+
+var pdfjsVersion =
+  typeof PDFJSDev !== 'undefined' ? PDFJSDev.eval('BUNDLE_VERSION') : void 0;
+var pdfjsBuild =
+  typeof PDFJSDev !== 'undefined' ? PDFJSDev.eval('BUNDLE_BUILD') : void 0;
+
+var pdfjsSharedUtil = require('./shared/util.js');
+var pdfjsDisplayGlobal = require('./display/global.js');
+var pdfjsDisplayAPI = require('./display/api.js');
+var pdfjsDisplayTextLayer = require('./display/text_layer.js');
+var pdfjsDisplayAnnotationLayer = require('./display/annotation_layer.js');
+var pdfjsDisplayDOMUtils = require('./display/dom_utils.js');
+var pdfjsDisplaySVG = require('./display/svg.js');
+
+if (typeof PDFJSDev === 'undefined' ||
+    !PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
+  if (pdfjsSharedUtil.isNodeJS()) {
+    var PDFNodeStream = require('./display/node_stream.js').PDFNodeStream;
+    pdfjsDisplayAPI.setPDFNetworkStreamClass(PDFNodeStream);
+  } else if (typeof Response !== 'undefined' && 'body' in Response.prototype &&
+             typeof ReadableStream !== 'undefined') {
+    var PDFFetchStream = require('./display/fetch_stream.js').PDFFetchStream;
+    pdfjsDisplayAPI.setPDFNetworkStreamClass(PDFFetchStream);
+   } else {
+    var PDFNetworkStream = require('./display/network.js').PDFNetworkStream;
+    pdfjsDisplayAPI.setPDFNetworkStreamClass(PDFNetworkStream);
   }
-}(this, function (exports) {
-  // Use strict in our context only - users might not want it
-  'use strict';
+}
 
-//#expand var pdfjsVersion = '__BUNDLE_VERSION__';
-//#expand var pdfjsBuild = '__BUNDLE_BUILD__';
-
-  var pdfjsFilePath =
-    typeof document !== 'undefined' && document.currentScript ?
-      document.currentScript.src : null;
-
-  var pdfjsLibs = {};
-
-  (function pdfjsWrapper() {
-
-//#expand __BUNDLE__
-
-  }).call(pdfjsLibs);
-
-//#if MAIN_FILE
-  exports.PDFJS = pdfjsLibs.pdfjsDisplayGlobal.PDFJS;
-  exports.build = pdfjsLibs.pdfjsDisplayAPI.build;
-  exports.version = pdfjsLibs.pdfjsDisplayAPI.version;
-  exports.getDocument = pdfjsLibs.pdfjsDisplayAPI.getDocument;
-  exports.PDFDataRangeTransport =
-    pdfjsLibs.pdfjsDisplayAPI.PDFDataRangeTransport;
-  exports.PDFWorker = pdfjsLibs.pdfjsDisplayAPI.PDFWorker;
-  exports.renderTextLayer = pdfjsLibs.pdfjsDisplayTextLayer.renderTextLayer;
-  exports.AnnotationLayer =
-    pdfjsLibs.pdfjsDisplayAnnotationLayer.AnnotationLayer;
-  exports.CustomStyle = pdfjsLibs.pdfjsDisplayDOMUtils.CustomStyle;
-  exports.PasswordResponses = pdfjsLibs.pdfjsSharedUtil.PasswordResponses;
-  exports.InvalidPDFException = pdfjsLibs.pdfjsSharedUtil.InvalidPDFException;
-  exports.MissingPDFException = pdfjsLibs.pdfjsSharedUtil.MissingPDFException;
-  exports.SVGGraphics = pdfjsLibs.pdfjsDisplaySVG.SVGGraphics;
-  exports.UnexpectedResponseException =
-    pdfjsLibs.pdfjsSharedUtil.UnexpectedResponseException;
-  exports.OPS = pdfjsLibs.pdfjsSharedUtil.OPS;
-  exports.UNSUPPORTED_FEATURES = pdfjsLibs.pdfjsSharedUtil.UNSUPPORTED_FEATURES;
-  exports.isValidUrl = pdfjsLibs.pdfjsSharedUtil.isValidUrl;
-  exports.createObjectURL = pdfjsLibs.pdfjsSharedUtil.createObjectURL;
-  exports.removeNullCharacters = pdfjsLibs.pdfjsSharedUtil.removeNullCharacters;
-  exports.shadow = pdfjsLibs.pdfjsSharedUtil.shadow;
-  exports.createBlob = pdfjsLibs.pdfjsSharedUtil.createBlob;
-  exports.getFilenameFromUrl =
-    pdfjsLibs.pdfjsDisplayDOMUtils.getFilenameFromUrl;
-  exports.addLinkAttributes = pdfjsLibs.pdfjsDisplayDOMUtils.addLinkAttributes;
-//#else
-  exports.WorkerMessageHandler = pdfjsLibs.pdfjsCoreWorker.WorkerMessageHandler;
-//#endif
-}));
+exports.PDFJS = pdfjsDisplayGlobal.PDFJS;
+exports.build = pdfjsDisplayAPI.build;
+exports.version = pdfjsDisplayAPI.version;
+exports.getDocument = pdfjsDisplayAPI.getDocument;
+exports.LoopbackPort = pdfjsDisplayAPI.LoopbackPort;
+exports.PDFDataRangeTransport = pdfjsDisplayAPI.PDFDataRangeTransport;
+exports.PDFWorker = pdfjsDisplayAPI.PDFWorker;
+exports.renderTextLayer = pdfjsDisplayTextLayer.renderTextLayer;
+exports.AnnotationLayer = pdfjsDisplayAnnotationLayer.AnnotationLayer;
+exports.CustomStyle = pdfjsDisplayDOMUtils.CustomStyle;
+exports.createPromiseCapability = pdfjsSharedUtil.createPromiseCapability;
+exports.PasswordResponses = pdfjsSharedUtil.PasswordResponses;
+exports.InvalidPDFException = pdfjsSharedUtil.InvalidPDFException;
+exports.MissingPDFException = pdfjsSharedUtil.MissingPDFException;
+exports.SVGGraphics = pdfjsDisplaySVG.SVGGraphics;
+exports.NativeImageDecoding = pdfjsSharedUtil.NativeImageDecoding;
+exports.UnexpectedResponseException =
+  pdfjsSharedUtil.UnexpectedResponseException;
+exports.OPS = pdfjsSharedUtil.OPS;
+exports.UNSUPPORTED_FEATURES = pdfjsSharedUtil.UNSUPPORTED_FEATURES;
+exports.createValidAbsoluteUrl = pdfjsSharedUtil.createValidAbsoluteUrl;
+exports.createObjectURL = pdfjsSharedUtil.createObjectURL;
+exports.removeNullCharacters = pdfjsSharedUtil.removeNullCharacters;
+exports.shadow = pdfjsSharedUtil.shadow;
+exports.createBlob = pdfjsSharedUtil.createBlob;
+exports.RenderingCancelledException =
+  pdfjsDisplayDOMUtils.RenderingCancelledException;
+exports.getFilenameFromUrl = pdfjsDisplayDOMUtils.getFilenameFromUrl;
+exports.addLinkAttributes = pdfjsDisplayDOMUtils.addLinkAttributes;

@@ -1,6 +1,3 @@
-/* jshint node:true */
-/* globals cp, ls, test */
-
 'use strict';
 
 var fs = require('fs'),
@@ -56,7 +53,7 @@ function preprocess(inFilename, outFilename, defines) {
       throw new Error('No JavaScript expression given at ' + loc());
     }
     try {
-      return vm.runInNewContext(code, defines, {displayErrors: false});
+      return vm.runInNewContext(code, defines, { displayErrors: false, });
     } catch (e) {
       throw new Error('Could not evaluate "' + code + '" at ' + loc() + '\n' +
                       e.name + ': ' + e.message);
@@ -107,10 +104,8 @@ function preprocess(inFilename, outFilename, defines) {
   var line;
   var state = STATE_NONE;
   var stack = [];
-  var control =
-  /* jshint -W101 */
+  var control = // eslint-disable-next-line max-len
     /^(?:\/\/|<!--)\s*#(if|elif|else|endif|expand|include|error)\b(?:\s+(.*?)(?:-->)?$)?/;
-  /* jshint +W101 */
   var lineNumber = 0;
   var loc = function() {
     return fs.realpathSync(inFilename) + ':' + lineNumber;
@@ -269,47 +264,6 @@ function preprocessCSS(mode, source, destination) {
   fs.writeFileSync(destination, content);
 }
 exports.preprocessCSS = preprocessCSS;
-
-/**
- * Simplifies common build steps.
- * @param {object} setup
- *        .defines defines for preprocessors
- *        .copy array of arrays of source and destination pairs of files to copy
- *        .preprocess array of arrays of source and destination pairs of files
- *                    run through preprocessor.
- */
-function build(setup) {
-  var defines = setup.defines;
-
-  setup.copy.forEach(function(option) {
-    var source = option[0];
-    var destination = option[1];
-    cp('-R', source, destination);
-  });
-
-  setup.preprocess.forEach(function(option) {
-    var sources = option[0];
-    var destination = option[1];
-
-    sources = ls('-R', sources);
-    sources.forEach(function(source) {
-      // ??? Warn if the source is wildcard and dest is file?
-      var destWithFolder = destination;
-      if (test('-d', destination)) {
-        destWithFolder += '/' + path.basename(source);
-      }
-      preprocess(source, destWithFolder, defines);
-    });
-  });
-
-  (setup.preprocessCSS || []).forEach(function(option) {
-    var mode = option[0];
-    var source = option[1];
-    var destination = option[2];
-    preprocessCSS(mode, source, destination);
-  });
-}
-exports.build = build;
 
 /**
  * Merge two defines arrays. Values in the second param will override values in

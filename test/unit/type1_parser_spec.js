@@ -1,7 +1,21 @@
-/* globals describe, it, expect, StringStream, Type1Parser,
-           SEAC_ANALYSIS_ENABLED */
+/* Copyright 2017 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-'use strict';
+import { SEAC_ANALYSIS_ENABLED } from '../../src/core/fonts';
+import { StringStream } from '../../src/core/stream';
+import { Type1Parser } from '../../src/core/type1_parser';
 
 describe('Type1Parser', function() {
   it('splits tokens', function() {
@@ -70,10 +84,10 @@ describe('Type1Parser', function() {
     var stream = new StringStream(
       '/ExpansionFactor  99\n' +
       '/Subrs 1 array\n' +
-      'dup 0 1 RD x noaccess put\n'+
+      'dup 0 1 RD x noaccess put\n' +
       'end\n' +
       '/CharStrings 46 dict dup begin\n' +
-      '/.notdef 1 RD x ND' + '\n' +
+      '/.notdef 1 RD x ND\n' +
       'end');
     var parser = new Type1Parser(stream, false, SEAC_ANALYSIS_ENABLED);
     var program = parser.extractFontProgram();
@@ -97,7 +111,7 @@ describe('Type1Parser', function() {
       'dup 33 /arrowright put\n' +
       'readonly def\n');
     var parser = new Type1Parser(stream, false, SEAC_ANALYSIS_ENABLED);
-    var props = { overridableEncoding: true };
+    var props = { overridableEncoding: true, };
     parser.extractFontHeader(props);
     expect(props.builtInEncoding[33]).toEqual('arrowright');
   });

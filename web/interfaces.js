@@ -12,106 +12,172 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable no-unused-vars */
 
 'use strict';
 
 /**
  * @interface
  */
-function IPDFLinkService() {}
-IPDFLinkService.prototype = {
+class IPDFLinkService {
   /**
    * @returns {number}
    */
-  get page() {},
+  get page() {}
+
   /**
    * @param {number} value
    */
-  set page(value) {},
+  set page(value) {}
+
+  /**
+   * @returns {number}
+   */
+  get rotation() {}
+
+  /**
+   * @param {number} value
+   */
+  set rotation(value) {}
+
   /**
    * @param dest - The PDF destination object.
    */
-  navigateTo: function (dest) {},
+  navigateTo(dest) {}
+
   /**
    * @param dest - The PDF destination object.
    * @returns {string} The hyperlink to the PDF object.
    */
-  getDestinationHash: function (dest) {},
+  getDestinationHash(dest) {}
+
   /**
    * @param hash - The PDF parameters/hash.
    * @returns {string} The hyperlink to the PDF object.
    */
-  getAnchorUrl: function (hash) {},
+  getAnchorUrl(hash) {}
+
   /**
    * @param {string} hash
    */
-  setHash: function (hash) {},
+  setHash(hash) {}
+
   /**
    * @param {string} action
    */
-  executeNamedAction: function (action) {},
+  executeNamedAction(action) {}
+
+  /**
+   * @param {Object} params
+   */
+  onFileAttachmentAnnotation({ id, filename, content, }) {}
 
   /**
    * @param {number} pageNum - page number.
    * @param {Object} pageRef - reference to the page.
    */
-  cachePageRef: function (pageNum, pageRef) {},
-};
+  cachePageRef(pageNum, pageRef) {}
+}
 
 /**
  * @interface
  */
-function IPDFHistory() {}
-IPDFHistory.prototype = {
-  forward: function () {},
-  back: function () {},
-  push: function (params) {},
-  updateNextHashParam: function (hash) {},
-};
+class IPDFHistory {
+  /**
+   * @param {string} fingerprint - The PDF document's unique fingerprint.
+   * @param {boolean} resetHistory - (optional) Reset the browsing history.
+   */
+  initialize(fingerprint, resetHistory = false) {}
+
+  /**
+   * @param {Object} params
+   */
+  push({ namedDest, explicitDest, pageNumber, }) {}
+
+  pushCurrentPosition() {}
+
+  back() {}
+
+  forward() {}
+}
 
 /**
  * @interface
  */
-function IRenderableView() {}
-IRenderableView.prototype = {
+class IRenderableView {
   /**
    * @returns {string} - Unique ID for rendering queue.
    */
-  get renderingId() {},
+  get renderingId() {}
+
   /**
    * @returns {RenderingStates}
    */
-  get renderingState() {},
+  get renderingState() {}
+
   /**
    * @returns {Promise} Resolved on draw completion.
    */
-  draw: function () {},
-  resume: function () {},
-};
+  draw() {}
+
+  resume() {}
+}
 
 /**
  * @interface
  */
-function IPDFTextLayerFactory() {}
-IPDFTextLayerFactory.prototype = {
+class IPDFTextLayerFactory {
   /**
    * @param {HTMLDivElement} textLayerDiv
    * @param {number} pageIndex
    * @param {PageViewport} viewport
+   * @param {boolean} enhanceTextSelection
    * @returns {TextLayerBuilder}
    */
-  createTextLayerBuilder: function (textLayerDiv, pageIndex, viewport) {}
-};
+  createTextLayerBuilder(textLayerDiv, pageIndex, viewport,
+                         enhanceTextSelection = false) {}
+}
 
 /**
  * @interface
  */
-function IPDFAnnotationLayerFactory() {}
-IPDFAnnotationLayerFactory.prototype = {
+class IPDFAnnotationLayerFactory {
   /**
    * @param {HTMLDivElement} pageDiv
    * @param {PDFPage} pdfPage
+   * @param {IL10n} l10n
+   * @param {boolean} renderInteractiveForms
    * @returns {AnnotationLayerBuilder}
    */
-  createAnnotationLayerBuilder: function (pageDiv, pdfPage) {}
-};
+  createAnnotationLayerBuilder(pageDiv, pdfPage,
+                               renderInteractiveForms = false,
+                               l10n = undefined) {}
+}
+
+/**
+ * @interface
+ */
+class IL10n {
+  /**
+   * @returns {Promise<string>} - Resolves to 'rtl' or 'ltr'.
+   */
+  getDirection() {}
+
+  /**
+   * Translates text identified by the key and adds/formats data using the args
+   * property bag. If the key was not found, translation falls back to the
+   * fallback text.
+   * @param {string} key
+   * @param {object} args
+   * @param {string} fallback
+   * @returns {Promise<string>}
+   */
+  get(key, args, fallback) { }
+
+  /**
+   * Translates HTML element.
+   * @param {HTMLElement} element
+   * @returns {Promise<void>}
+   */
+  translate(element) { }
+}

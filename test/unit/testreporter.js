@@ -1,6 +1,6 @@
-
 'use strict';
 
+// eslint-disable-next-line no-unused-vars
 var TestReporter = function(browser, appPath) {
   function send(action, json, cb) {
     var r = new XMLHttpRequest();
@@ -24,13 +24,13 @@ var TestReporter = function(browser, appPath) {
   }
 
   function sendInfo(message) {
-    send('/info', {message: message});
+    send('/info', { message, });
   }
 
   function sendResult(status, description, error) {
     var message = {
-      status: status,
-      description: description
+      status,
+      description,
     };
     if (typeof error !== 'undefined') {
       message['error'] = error;

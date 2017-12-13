@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable object-shorthand */
 
 'use strict';
 
@@ -45,7 +46,7 @@ function createExtensionGlobal() {
   window.chrome.runtime = {};
   window.chrome.runtime.id = 'oemmndcbldboiebfnladdacbdfmadadm';
   window.chrome.runtime.getManifest = function() {
-    return {version: '1.0.0'};
+    return { version: '1.0.0', };
   };
 
   function createStorageAPI() {
@@ -84,7 +85,9 @@ function createExtensionGlobal() {
   // Network-related mocks.
   window.Request = {};
   window.Request.prototype = {
-    get mode() { throw new TypeError('Illegal invocation'); },
+    get mode() {
+      throw new TypeError('Illegal invocation');
+    },
   };
   window.fetch = function(url, options) {
     assert.equal(url, LOG_URL);
@@ -321,7 +324,7 @@ var tests = [
     var window = createExtensionGlobal();
     telemetryScript.runInNewContext(window);
     window.chrome.runtime.getManifest = function() {
-     return {version: '1.0.1'};
+      return { version: '1.0.1', };
     };
     window.Date.test_now_value += 12 * 36E5;
     telemetryScript.runInNewContext(window);
@@ -339,7 +342,9 @@ var tests = [
     var window = createExtensionGlobal();
     var didWarn = false;
     window.console = {};
-    window.console.warn = function() { didWarn = true; };
+    window.console.warn = function() {
+      didWarn = true;
+    };
     window.chrome.runtime.id = 'abcdefghijklmnopabcdefghijklmnop';
     telemetryScript.runInNewContext(window);
     assert.deepEqual(window.test_requests, []);
@@ -373,7 +378,9 @@ var tests = [
   function test_fetch_mode_not_supported() {
     var window = createExtensionGlobal();
     delete window.Request.prototype.mode;
-    window.fetch = function() { throw new Error('Unexpected call to fetch!'); };
+    window.fetch = function() {
+      throw new Error('Unexpected call to fetch!');
+    };
     telemetryScript.runInNewContext(window);
     assert.deepEqual(window.test_requests, [{
       'Deduplication-Id': '4242424242',

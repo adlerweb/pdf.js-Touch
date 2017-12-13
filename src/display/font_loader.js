@@ -12,38 +12,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* globals FontFace */
 
-'use strict';
-
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs/display/font_loader', ['exports', 'pdfjs/shared/util'],
-      factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../shared/util.js'));
-  } else {
-    factory((root.pdfjsDisplayFontLoader = {}), root.pdfjsSharedUtil);
-  }
-}(this, function (exports, sharedUtil) {
-
-var assert = sharedUtil.assert;
-var bytesToString = sharedUtil.bytesToString;
-var string32 = sharedUtil.string32;
-var shadow = sharedUtil.shadow;
-var warn = sharedUtil.warn;
+import {
+  assert, bytesToString, isEvalSupported, shadow, string32, warn
+} from '../shared/util';
 
 function FontLoader(docId) {
   this.docId = docId;
   this.styleElement = null;
-//#if !(MOZCENTRAL)
-  this.nativeFontFaces = [];
-  this.loadTestFontId = 0;
-  this.loadingContext = {
-    requests: [],
-    nextRequestId: 0
-  };
-//#endif
+  if (typeof PDFJSDev === 'undefined' || !PDFJSDev.test('MOZCENTRAL')) {
+    this.nativeFontFaces = [];
+    this.loadTestFontId = 0;
+    this.loadingContext = {
+      requests: [],
+      nextRequestId: 0,
+    };
+  }
 }
 FontLoader.prototype = {
   insertRule: function fontLoaderInsertRule(rule) {
@@ -60,23 +44,25 @@ FontLoader.prototype = {
   },
 
   clear: function fontLoaderClear() {
-    var styleElement = this.styleElement;
-    if (styleElement) {
-      styleElement.parentNode.removeChild(styleElement);
-      styleElement = this.styleElement = null;
+    if (this.styleElement) {
+      // Note: ChildNode.remove doesn't throw if the parentNode is undefined.
+      this.styleElement.remove();
+      this.styleElement = null;
     }
-//#if !(MOZCENTRAL)
-    this.nativeFontFaces.forEach(function(nativeFontFace) {
-      document.fonts.delete(nativeFontFace);
-    });
-    this.nativeFontFaces.length = 0;
-//#endif
+    if (typeof PDFJSDev === 'undefined' || !PDFJSDev.test('MOZCENTRAL')) {
+      this.nativeFontFaces.forEach(function(nativeFontFace) {
+        document.fonts.delete(nativeFontFace);
+      });
+      this.nativeFontFaces.length = 0;
+    }
   },
-//#if !(MOZCENTRAL)
-  get loadTestFont() {
+};
+
+if (typeof PDFJSDev === 'undefined' || !PDFJSDev.test('MOZCENTRAL')) {
+  var getLoadTestFont = function () {
     // This is a CFF font with 1 glyph for '.' that fills its entire width and
     // height.
-    return shadow(this, 'loadTestFont', atob(
+    return atob(
       'T1RUTwALAIAAAwAwQ0ZGIDHtZg4AAAOYAAAAgUZGVE1lkzZwAAAEHAAAABxHREVGABQAFQ' +
       'AABDgAAAAeT1MvMlYNYwkAAAEgAAAAYGNtYXABDQLUAAACNAAAAUJoZWFk/xVFDQAAALwA' +
       'AAA2aGhlYQdkA+oAAAD0AAAAJGhtdHgD6AAAAAAEWAAAAAZtYXhwAAJQAAAAARgAAAAGbm' +
@@ -98,16 +84,22 @@ FontLoader.prototype = {
       'A/gXBIwMAYuL+nz5tQXkD5j3CBLnEQACAQEBIVhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF' +
       'hYWFhYWFhYAAABAQAADwACAQEEE/t3Dov6fAH6fAT+fPp8+nwHDosMCvm1Cvm1DAz6fBQA' +
       'AAAAAAABAAAAAMmJbzEAAAAAzgTjFQAAAADOBOQpAAEAAAAAAAAADAAUAAQAAAABAAAAAg' +
-      'ABAAAAAAAAAAAD6AAAAAAAAA=='
-    ));
-  },
+      'ABAAAAAAAAAAAD6AAAAAAAAA==');
+  };
+  Object.defineProperty(FontLoader.prototype, 'loadTestFont', {
+    get() {
+      return shadow(this, 'loadTestFont', getLoadTestFont());
+    },
+    configurable: true,
+  });
 
-  addNativeFontFace: function fontLoader_addNativeFontFace(nativeFontFace) {
+  FontLoader.prototype.addNativeFontFace =
+      function fontLoader_addNativeFontFace(nativeFontFace) {
     this.nativeFontFaces.push(nativeFontFace);
     document.fonts.add(nativeFontFace);
-  },
+  };
 
-  bind: function fontLoaderBind(fonts, callback) {
+  FontLoader.prototype.bind = function fontLoaderBind(fonts, callback) {
     var rules = [];
     var fontsToLoad = [];
     var fontLoadPromises = [];
@@ -118,6 +110,10 @@ FontLoader.prototype = {
         warn('Failed to load font "' + nativeFontFace.family + '": ' + e);
       });
     };
+    // Firefox Font Loading API does not work with mozPrintCallback --
+    // disabling it in this case.
+    var isFontLoadingAPISupported = FontLoader.isFontLoadingAPISupported &&
+                                    !FontLoader.isSyncFontLoadingSupported;
     for (var i = 0, ii = fonts.length; i < ii; i++) {
       var font = fonts[i];
 
@@ -128,7 +124,7 @@ FontLoader.prototype = {
       }
       font.attached = true;
 
-      if (FontLoader.isFontLoadingAPISupported) {
+      if (isFontLoadingAPISupported) {
         var nativeFontFace = font.createNativeFontFace();
         if (nativeFontFace) {
           this.addNativeFontFace(nativeFontFace);
@@ -145,7 +141,7 @@ FontLoader.prototype = {
     }
 
     var request = this.queueLoadingCallback(callback);
-    if (FontLoader.isFontLoadingAPISupported) {
+    if (isFontLoadingAPISupported) {
       Promise.all(fontLoadPromises).then(function() {
         request.complete();
       });
@@ -154,9 +150,10 @@ FontLoader.prototype = {
     } else {
       request.complete();
     }
-  },
+  };
 
-  queueLoadingCallback: function FontLoader_queueLoadingCallback(callback) {
+  FontLoader.prototype.queueLoadingCallback =
+      function FontLoader_queueLoadingCallback(callback) {
     function LoadLoader_completeRequest() {
       assert(!request.end, 'completeRequest() cannot be called twice');
       request.end = Date.now();
@@ -173,16 +170,15 @@ FontLoader.prototype = {
     var request = {
       id: requestId,
       complete: LoadLoader_completeRequest,
-      callback: callback,
-      started: Date.now()
+      callback,
+      started: Date.now(),
     };
     context.requests.push(request);
     return request;
-  },
+  };
 
-  prepareFontLoadEvent: function fontLoaderPrepareFontLoadEvent(rules,
-                                                                fonts,
-                                                                request) {
+  FontLoader.prototype.prepareFontLoadEvent =
+        function fontLoaderPrepareFontLoadEvent(rules, fonts, request) {
       /** Hack begin */
       // There's currently no event when a font has finished downloading so the
       // following code is a dirty hack to 'guess' when a font is
@@ -205,6 +201,7 @@ FontLoader.prototype = {
 
       var i, ii;
 
+      // The temporary canvas is used to determine if fonts are loaded.
       var canvas = document.createElement('canvas');
       canvas.width = 1;
       canvas.height = 1;
@@ -214,7 +211,7 @@ FontLoader.prototype = {
       function isFontReady(name, callback) {
         called++;
         // With setTimeout clamping this gives the font ~100ms to load.
-        if(called > 30) {
+        if (called > 30) {
           warn('Load test font never loaded.');
           callback();
           return;
@@ -281,36 +278,34 @@ FontLoader.prototype = {
         request.complete();
       });
       /** Hack end */
-  }
-//#else
-//bind: function fontLoaderBind(fonts, callback) {
-//  for (var i = 0, ii = fonts.length; i < ii; i++) {
-//    var font = fonts[i];
-//    if (font.attached) {
-//      continue;
-//    }
-//
-//    font.attached = true;
-//    var rule = font.createFontFaceRule();
-//    if (rule) {
-//      this.insertRule(rule);
-//    }
-//  }
-//
-//  setTimeout(callback);
-//}
-//#endif
-};
-//#if !(MOZCENTRAL)
-FontLoader.isFontLoadingAPISupported = typeof document !== 'undefined' &&
-                                       !!document.fonts;
-//#endif
-//#if !(MOZCENTRAL || CHROME)
-Object.defineProperty(FontLoader, 'isSyncFontLoadingSupported', {
-  get: function () {
+  };
+} else {
+  FontLoader.prototype.bind = function fontLoaderBind(fonts, callback) {
+    for (var i = 0, ii = fonts.length; i < ii; i++) {
+      var font = fonts[i];
+      if (font.attached) {
+        continue;
+      }
+
+      font.attached = true;
+      var rule = font.createFontFaceRule();
+      if (rule) {
+        this.insertRule(rule);
+      }
+    }
+
+    setTimeout(callback);
+  };
+}
+if (typeof PDFJSDev === 'undefined' || !PDFJSDev.test('MOZCENTRAL')) {
+  FontLoader.isFontLoadingAPISupported = typeof document !== 'undefined' &&
+                                         !!document.fonts;
+}
+if (typeof PDFJSDev === 'undefined' || !PDFJSDev.test('MOZCENTRAL || CHROME')) {
+  var isSyncFontLoadingSupported = function isSyncFontLoadingSupported() {
     if (typeof navigator === 'undefined') {
       // node.js - we can pretend sync font loading is supported.
-      return shadow(FontLoader, 'isSyncFontLoadingSupported', true);
+      return true;
     }
 
     var supported = false;
@@ -322,17 +317,22 @@ Object.defineProperty(FontLoader, 'isSyncFontLoadingSupported', {
       supported = true;
     }
     // TODO other browsers
-    return shadow(FontLoader, 'isSyncFontLoadingSupported', supported);
-  },
-  enumerable: true,
-  configurable: true
-});
-//#endif
+    return supported;
+  };
+  Object.defineProperty(FontLoader, 'isSyncFontLoadingSupported', {
+    get() {
+      return shadow(FontLoader, 'isSyncFontLoadingSupported',
+                    isSyncFontLoadingSupported());
+    },
+    enumerable: true,
+    configurable: true,
+  });
+}
 
 var IsEvalSupportedCached = {
   get value() {
-    return shadow(this, 'value', sharedUtil.isEvalSupported());
-  }
+    return shadow(this, 'value', isEvalSupported());
+  },
 };
 
 var FontFaceObject = (function FontFaceObjectClosure() {
@@ -345,8 +345,11 @@ var FontFaceObject = (function FontFaceObjectClosure() {
     this.options = options;
   }
   FontFaceObject.prototype = {
-//#if !(MOZCENTRAL)
     createNativeFontFace: function FontFaceObject_createNativeFontFace() {
+      if (typeof PDFJSDev !== 'undefined' && PDFJSDev.test('MOZCENTRAL')) {
+        throw new Error('Not implemented: createNativeFontFace');
+      }
+
       if (!this.data) {
         return null;
       }
@@ -363,7 +366,6 @@ var FontFaceObject = (function FontFaceObjectClosure() {
       }
       return nativeFontFace;
     },
-//#endif
 
     createFontFaceRule: function FontFaceObject_createFontFaceRule() {
       if (!this.data) {
@@ -409,7 +411,7 @@ var FontFaceObject = (function FontFaceObjectClosure() {
 
             js += 'c.' + current.cmd + '(' + args + ');\n';
           }
-          /* jshint -W054 */
+          // eslint-disable-next-line no-new-func
           this.compiledGlyphs[character] = new Function('c', 'size', js);
         } else {
           // But fall back on using Function.prototype.apply() if we're
@@ -428,11 +430,13 @@ var FontFaceObject = (function FontFaceObjectClosure() {
         }
       }
       return this.compiledGlyphs[character];
-    }
+    },
   };
+
   return FontFaceObject;
 })();
 
-exports.FontFaceObject = FontFaceObject;
-exports.FontLoader = FontLoader;
-}));
+export {
+  FontFaceObject,
+  FontLoader,
+};

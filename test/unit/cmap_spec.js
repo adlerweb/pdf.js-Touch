@@ -1,19 +1,68 @@
-/* globals expect, it, describe, StringStream, CMapFactory, Name, CMap,
-           IdentityCMap */
+/* Copyright 2017 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-'use strict';
+import { CMap, CMapFactory, IdentityCMap } from '../../src/core/cmap';
+import { DOMCMapReaderFactory } from '../../src/display/dom_utils';
+import { isNodeJS } from '../../src/shared/util';
+import { Name } from '../../src/core/primitives';
+import { NodeCMapReaderFactory } from './test_utils';
+import { StringStream } from '../../src/core/stream';
 
-var cMapUrl = '../../external/bcmaps/';
+var cMapUrl = {
+  dom: '../../external/bcmaps/',
+  node: './external/bcmaps/',
+};
 var cMapPacked = true;
 
 describe('cmap', function() {
+  var fetchBuiltInCMap;
+
+  beforeAll(function (done) {
+    // Allow CMap testing in Node.js, e.g. for Travis.
+    var CMapReaderFactory;
+    if (isNodeJS()) {
+      CMapReaderFactory = new NodeCMapReaderFactory({
+        baseUrl: cMapUrl.node,
+        isCompressed: cMapPacked,
+      });
+    } else {
+      CMapReaderFactory = new DOMCMapReaderFactory({
+        baseUrl: cMapUrl.dom,
+        isCompressed: cMapPacked,
+      });
+    }
+
+    fetchBuiltInCMap = function (name) {
+      return CMapReaderFactory.fetch({
+        name,
+      });
+    };
+    done();
+  });
+
+  afterAll(function () {
+    fetchBuiltInCMap = null;
+  });
+
   it('parses beginbfchar', function(done) {
     var str = '2 beginbfchar\n' +
               '<03> <00>\n' +
               '<04> <01>\n' +
               'endbfchar\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.lookup(0x03)).toEqual(String.fromCharCode(0x00));
       expect(cmap.lookup(0x04)).toEqual(String.fromCharCode(0x01));
@@ -28,7 +77,7 @@ describe('cmap', function() {
               '<06> <0B> 0\n' +
               'endbfrange\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.lookup(0x05)).toBeUndefined();
       expect(cmap.lookup(0x06)).toEqual(String.fromCharCode(0x00));
@@ -44,7 +93,7 @@ describe('cmap', function() {
               '<0D> <12> [ 0 1 2 3 4 5 ]\n' +
               'endbfrange\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.lookup(0x0C)).toBeUndefined();
       expect(cmap.lookup(0x0D)).toEqual(0x00);
@@ -60,7 +109,7 @@ describe('cmap', function() {
               '<14> 0\n' +
               'endcidchar\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.lookup(0x14)).toEqual(0x00);
       expect(cmap.lookup(0x15)).toBeUndefined();
@@ -74,7 +123,7 @@ describe('cmap', function() {
               '<0016> <001B>   0\n' +
               'endcidrange\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.lookup(0x15)).toBeUndefined();
       expect(cmap.lookup(0x16)).toEqual(0x00);
@@ -91,7 +140,7 @@ describe('cmap', function() {
               '<00000003> <00000004>\n' +
               'endcodespacerange\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       var c = {};
       cmap.readCharCode(String.fromCharCode(1), 0, c);
@@ -110,7 +159,7 @@ describe('cmap', function() {
               '<8EA1A1A1> <8EA1FEFE>\n' +
               'endcodespacerange\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       var c = {};
       cmap.readCharCode(String.fromCharCode(0x8E, 0xA1, 0xA1, 0xA1), 0, c);
@@ -124,8 +173,11 @@ describe('cmap', function() {
   it('read usecmap', function(done) {
     var str = '/Adobe-Japan1-1 usecmap\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream,
-                                  { url: cMapUrl, packed: cMapPacked }, null);
+    var cmapPromise = CMapFactory.create({
+      encoding: stream,
+      fetchBuiltInCMap,
+      useCMap: null,
+    });
     cmapPromise.then(function (cmap) {
       expect(cmap instanceof CMap).toEqual(true);
       expect(cmap.useCMap).not.toBeNull();
@@ -140,7 +192,7 @@ describe('cmap', function() {
   it('parses cmapname', function(done) {
     var str = '/CMapName /Identity-H def\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.name).toEqual('Identity-H');
       done();
@@ -151,7 +203,7 @@ describe('cmap', function() {
   it('parses wmode', function(done) {
     var str = '/WMode 1 def\n';
     var stream = new StringStream(str);
-    var cmapPromise = CMapFactory.create(stream);
+    var cmapPromise = CMapFactory.create({ encoding: stream, });
     cmapPromise.then(function (cmap) {
       expect(cmap.vertical).toEqual(true);
       done();
@@ -160,8 +212,11 @@ describe('cmap', function() {
     });
   });
   it('loads built in cmap', function(done) {
-    var cmapPromise = CMapFactory.create(Name.get('Adobe-Japan1-1'),
-                                  { url: cMapUrl, packed: cMapPacked }, null);
+    var cmapPromise = CMapFactory.create({
+      encoding: Name.get('Adobe-Japan1-1'),
+      fetchBuiltInCMap,
+      useCMap: null,
+    });
     cmapPromise.then(function (cmap) {
       expect(cmap instanceof CMap).toEqual(true);
       expect(cmap.useCMap).toBeNull();
@@ -174,17 +229,97 @@ describe('cmap', function() {
     });
   });
   it('loads built in identity cmap', function(done) {
-    var cmapPromise = CMapFactory.create(Name.get('Identity-H'),
-                                  { url: cMapUrl, packed: cMapPacked }, null);
+    var cmapPromise = CMapFactory.create({
+      encoding: Name.get('Identity-H'),
+      fetchBuiltInCMap,
+      useCMap: null,
+    });
     cmapPromise.then(function (cmap) {
       expect(cmap instanceof IdentityCMap).toEqual(true);
       expect(cmap.vertical).toEqual(false);
       expect(cmap.length).toEqual(0x10000);
-      expect(function() { return cmap.isIdentityCMap; }).toThrow(
-        new Error('should not access .isIdentityCMap'));
+      expect(function() {
+        return cmap.isIdentityCMap;
+      }).toThrow(new Error('should not access .isIdentityCMap'));
       done();
     }).catch(function (reason) {
       done.fail(reason);
+    });
+  });
+
+  it('attempts to load a non-existent built-in CMap', function(done) {
+    var cmapPromise = CMapFactory.create({
+      encoding: Name.get('null'),
+      fetchBuiltInCMap,
+      useCMap: null,
+    });
+    cmapPromise.then(function () {
+      done.fail('No CMap should be loaded');
+    }, function (reason) {
+      expect(reason instanceof Error).toEqual(true);
+      expect(reason.message).toEqual('Unknown CMap name: null');
+      done();
+    });
+  });
+
+  it('attempts to load a built-in CMap without the necessary API parameters',
+      function(done) {
+    function tmpFetchBuiltInCMap(name) {
+      var CMapReaderFactory = isNodeJS() ?
+        new NodeCMapReaderFactory({ }) : new DOMCMapReaderFactory({ });
+      return CMapReaderFactory.fetch({
+        name,
+      });
+    }
+
+    var cmapPromise = CMapFactory.create({
+      encoding: Name.get('Adobe-Japan1-1'),
+      fetchBuiltInCMap: tmpFetchBuiltInCMap,
+      useCMap: null,
+    });
+    cmapPromise.then(function () {
+      done.fail('No CMap should be loaded');
+    }, function (reason) {
+      expect(reason instanceof Error).toEqual(true);
+      expect(reason.message).toEqual('CMap baseUrl must be specified, ' +
+        'see "PDFJS.cMapUrl" (and also "PDFJS.cMapPacked").');
+      done();
+    });
+  });
+
+  it('attempts to load a built-in CMap with inconsistent API parameters',
+      function(done) {
+    function tmpFetchBuiltInCMap(name) {
+      let CMapReaderFactory;
+      if (isNodeJS()) {
+        CMapReaderFactory = new NodeCMapReaderFactory({
+          baseUrl: cMapUrl.node,
+          isCompressed: false,
+        });
+      } else {
+        CMapReaderFactory = new DOMCMapReaderFactory({
+          baseUrl: cMapUrl.dom,
+          isCompressed: false,
+        });
+      }
+      return CMapReaderFactory.fetch({
+        name,
+      });
+    }
+
+    let cmapPromise = CMapFactory.create({
+      encoding: Name.get('Adobe-Japan1-1'),
+      fetchBuiltInCMap: tmpFetchBuiltInCMap,
+      useCMap: null,
+    });
+    cmapPromise.then(function () {
+      done.fail('No CMap should be loaded');
+    }, function (reason) {
+      expect(reason instanceof Error).toEqual(true);
+      let message = reason.message;
+      expect(message.startsWith('Unable to load CMap at: ')).toEqual(true);
+      expect(message.endsWith('/external/bcmaps/Adobe-Japan1-1')).toEqual(true);
+      done();
     });
   });
 });

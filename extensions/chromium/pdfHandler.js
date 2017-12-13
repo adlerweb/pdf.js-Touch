@@ -13,7 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* globals chrome, Features, saveReferer */
+/* import-globals-from feature-detect.js */
+/* import-globals-from preserve-referer.js */
 
 'use strict';
 
@@ -54,7 +55,7 @@ function isPdfDownloadable(details) {
  * @return {undefined|{name: string, value: string}} The header, if found.
  */
 function getHeaderFromHeaders(headers, headerName) {
-  for (var i=0; i<headers.length; ++i) {
+  for (var i = 0; i < headers.length; ++i) {
     var header = headers[i];
     if (header.name.toLowerCase() === headerName) {
       return header;
@@ -72,10 +73,20 @@ function getHeaderFromHeaders(headers, headerName) {
 function isPdfFile(details) {
   var header = getHeaderFromHeaders(details.responseHeaders, 'content-type');
   if (header) {
-    var headerValue = header.value.toLowerCase().split(';',1)[0].trim();
-    return (headerValue === 'application/pdf' ||
-            headerValue === 'application/octet-stream' &&
-            details.url.toLowerCase().indexOf('.pdf') > 0);
+    var headerValue = header.value.toLowerCase().split(';', 1)[0].trim();
+    if (headerValue === 'application/pdf') {
+      return true;
+    }
+    if (headerValue === 'application/octet-stream') {
+      if (details.url.toLowerCase().indexOf('.pdf') > 0) {
+        return true;
+      }
+      var cdHeader =
+        getHeaderFromHeaders(details.responseHeaders, 'content-disposition');
+      if (cdHeader && /\.pdf(["']|$)/i.test(cdHeader.value)) {
+        return true;
+      }
+    }
   }
 }
 
@@ -92,12 +103,12 @@ function getHeadersWithContentDispositionAttachment(details) {
   var headers = details.responseHeaders;
   var cdHeader = getHeaderFromHeaders(headers, 'content-disposition');
   if (!cdHeader) {
-    cdHeader = {name: 'Content-Disposition'};
+    cdHeader = { name: 'Content-Disposition', };
     headers.push(cdHeader);
   }
   if (!/^attachment/i.test(cdHeader.value)) {
     cdHeader.value = 'attachment' + cdHeader.value.replace(/^[^;]+/i, '');
-    return { responseHeaders: headers };
+    return { responseHeaders: headers, };
   }
 }
 
@@ -122,7 +133,7 @@ chrome.webRequest.onHeadersReceived.addListener(
 
     // Replace frame with viewer
     if (Features.webRequestRedirectUrl) {
-      return { redirectUrl: viewerUrl };
+      return { redirectUrl: viewerUrl, };
     }
     // Aww.. redirectUrl is not yet supported, so we have to use a different
     // method as fallback (Chromium <35).
@@ -130,20 +141,19 @@ chrome.webRequest.onHeadersReceived.addListener(
     if (details.frameId === 0) {
       // Main frame. Just replace the tab and be done!
       chrome.tabs.update(details.tabId, {
-        url: viewerUrl
+        url: viewerUrl,
       });
-      return { cancel: true };
-    } else {
-      console.warn('Child frames are not supported in ancient Chrome builds!');
+      return { cancel: true, };
     }
+    console.warn('Child frames are not supported in ancient Chrome builds!');
   },
   {
     urls: [
       '<all_urls>'
     ],
-    types: ['main_frame', 'sub_frame']
+    types: ['main_frame', 'sub_frame'],
   },
-  ['blocking','responseHeaders']);
+  ['blocking', 'responseHeaders']);
 
 chrome.webRequest.onBeforeRequest.addListener(
   function onBeforeRequestForFTP(details) {
@@ -155,14 +165,14 @@ chrome.webRequest.onBeforeRequest.addListener(
       return;
     }
     var viewerUrl = getViewerURL(details.url);
-    return { redirectUrl: viewerUrl };
+    return { redirectUrl: viewerUrl, };
   },
   {
     urls: [
       'ftp://*/*.pdf',
       'ftp://*/*.PDF'
     ],
-    types: ['main_frame', 'sub_frame']
+    types: ['main_frame', 'sub_frame'],
   },
   ['blocking']);
 
@@ -177,14 +187,14 @@ chrome.webRequest.onBeforeRequest.addListener(
     // through XMLHttpRequest. Necessary to deal with http://crbug.com/302548
     var viewerUrl = getViewerURL(details.url);
 
-    return { redirectUrl: viewerUrl };
+    return { redirectUrl: viewerUrl, };
   },
   {
     urls: [
       'file://*/*.pdf',
       'file://*/*.PDF'
     ],
-    types: ['main_frame', 'sub_frame']
+    types: ['main_frame', 'sub_frame'],
   },
   ['blocking']);
 
@@ -200,17 +210,17 @@ chrome.extension.isAllowedFileSchemeAccess(function(isAllowedAccess) {
   chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
     if (details.frameId === 0 && !isPdfDownloadable(details)) {
       chrome.tabs.update(details.tabId, {
-        url: getViewerURL(details.url)
+        url: getViewerURL(details.url),
       });
     }
   }, {
     url: [{
       urlPrefix: 'file://',
-      pathSuffix: '.pdf'
+      pathSuffix: '.pdf',
     }, {
       urlPrefix: 'file://',
-      pathSuffix: '.PDF'
-    }]
+      pathSuffix: '.PDF',
+    }],
   });
 });
 
@@ -252,11 +262,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         windowId: sender.tab.windowId,
         index: sender.tab.index + 1,
         url: url,
-        openerTabId: sender.tab.id
+        openerTabId: sender.tab.id,
       });
     } else {
       chrome.tabs.update(sender.tab.id, {
-        url: url
+        url: url,
       });
     }
   }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*jslint node: true */
+/* eslint-disable object-shorthand */
 
 'use strict';
 
@@ -22,7 +22,6 @@ var fs = require('fs');
 var path = require('path');
 var spawn = require('child_process').spawn;
 var testUtils = require('./testutils.js');
-var shelljs = require('shelljs');
 var crypto = require('crypto');
 
 var tempDirPrefix = 'pdfjs_';
@@ -141,28 +140,41 @@ WebBrowser.prototype = {
     var cmdKillAll, cmdCheckAllKilled, isAllKilled;
 
     if (process.platform === 'win32') {
-      var wmicPrefix = 'wmic process where "not Name = \'cmd.exe\' ' +
+      var wmicPrefix = ['process', 'where', '"not Name = \'cmd.exe\' ' +
         'and not Name like \'%wmic%\' ' +
-        'and CommandLine like \'%' + this.uniqStringId + '%\'" ';
-      cmdKillAll = wmicPrefix + 'call terminate';
-      cmdCheckAllKilled = wmicPrefix + 'get CommandLine';
+        'and CommandLine like \'%' + this.uniqStringId + '%\'"'];
+      cmdKillAll = {
+        file: 'wmic',
+        args: wmicPrefix.concat(['call', 'terminate']),
+      };
+      cmdCheckAllKilled = {
+        file: 'wmic',
+        args: wmicPrefix.concat(['get', 'CommandLine']),
+      };
       isAllKilled = function(exitCode, stdout) {
         return stdout.indexOf(this.uniqStringId) === -1;
       }.bind(this);
     } else {
-      cmdKillAll = 'pkill -f ' + this.uniqStringId;
-      cmdCheckAllKilled = 'pgrep -f ' + this.uniqStringId;
+      cmdKillAll = { file: 'pkill', args: ['-f', this.uniqStringId], };
+      cmdCheckAllKilled = { file: 'pgrep', args: ['-f', this.uniqStringId], };
       isAllKilled = function(pgrepStatus) {
         return pgrepStatus === 1; // "No process matched.", per man pgrep.
       };
     }
     function execAsyncNoStdin(cmd, onExit) {
-      var proc = shelljs.exec(cmd, {
-        async: true,
-        silent: true,
-      }, onExit);
+      var proc = spawn(cmd.file, cmd.args, {
+        shell: true,
+        stdio: 'pipe',
+      });
       // Close stdin, otherwise wmic won't run.
       proc.stdin.end();
+      var stdout = '';
+      proc.stdout.on('data', (data) => {
+        stdout += data;
+      });
+      proc.on('close', (code) => {
+        onExit(code, stdout);
+      });
     }
     var killDateStart = Date.now();
     // Note: First process' output it shown, the later outputs are suppressed.
@@ -229,12 +241,13 @@ ChromiumBrowser.prototype = Object.create(WebBrowser.prototype);
 ChromiumBrowser.prototype.buildArguments = function (url) {
   var profileDir = this.getProfileDir();
   return ['--user-data-dir=' + profileDir,
-    '--no-first-run', '--disable-sync', url];
+    '--no-first-run', '--disable-sync',
+    '--no-default-browser-check', url];
 };
 
 WebBrowser.create = function (desc) {
   var name = desc.name;
-  var path = shelljs.which(desc.path);
+  var path = fs.realpathSync(desc.path);
   if (!path) {
     throw new Error('Browser executable not found: ' + desc.path);
   }

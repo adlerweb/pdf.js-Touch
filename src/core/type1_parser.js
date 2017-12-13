@@ -13,25 +13,9 @@
  * limitations under the License.
  */
 
-'use strict';
-
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs/core/type1_parser', ['exports', 'pdfjs/shared/util',
-      'pdfjs/core/stream', 'pdfjs/core/encodings'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../shared/util.js'), require('./stream.js'),
-      require('./encodings.js'));
-  } else {
-    factory((root.pdfjsCoreType1Parser = {}), root.pdfjsSharedUtil,
-      root.pdfjsCoreStream, root.pdfjsCoreEncodings);
-  }
-}(this, function (exports, sharedUtil, coreStream, coreEncodings) {
-
-var warn = sharedUtil.warn;
-var isSpace = sharedUtil.isSpace;
-var Stream = coreStream.Stream;
-var getEncoding = coreEncodings.getEncoding;
+import { isSpace, warn } from '../shared/util';
+import { getEncoding } from './encodings';
+import { Stream } from './stream';
 
 // Hinting is currently disabled due to unknown problems on windows
 // in tracemonkey and various other pdfs with type1 fonts.
@@ -86,12 +70,12 @@ var Type1CharString = (function Type1CharStringClosure() {
     'rrcurveto': [8],
     'callsubr': [10],
     'flex': [12, 35],
-    'drop' : [12, 18],
+    'drop': [12, 18],
     'endchar': [14],
     'rmoveto': [21],
     'hmoveto': [22],
     'vhcurveto': [30],
-    'hvcurveto': [31]
+    'hvcurveto': [31],
   };
 
   function Type1CharString() {
@@ -166,6 +150,10 @@ var Type1CharString = (function Type1CharStringClosure() {
                 break;
               }
               subrNumber = this.stack.pop();
+              if (!subrs[subrNumber]) {
+                error = true;
+                break;
+              }
               error = this.convert(subrs[subrNumber], subrs,
                                    seacAnalysisEnabled);
               break;
@@ -251,7 +239,7 @@ var Type1CharString = (function Type1CharStringClosure() {
               // first part of the charstring and then use rmoveto with
               // (dx, dy). The height argument will not be used for vmtx and
               // vhea tables reconstruction -- ignoring it.
-              var wy = this.stack.pop();
+              this.stack.pop(); // wy
               wx = this.stack.pop();
               var sby = this.stack.pop();
               sbx = this.stack.pop();
@@ -332,7 +320,7 @@ var Type1CharString = (function Type1CharStringClosure() {
       return error;
     },
 
-    executeCommand: function(howManyArgs, command, keepStack) {
+    executeCommand(howManyArgs, command, keepStack) {
       var stackLength = this.stack.length;
       if (howManyArgs > stackLength) {
         return true;
@@ -340,7 +328,7 @@ var Type1CharString = (function Type1CharStringClosure() {
       var start = stackLength - howManyArgs;
       for (var i = start; i < stackLength; i++) {
         var value = this.stack[i];
-        if (value === (value | 0)) { // int
+        if (Number.isInteger(value)) {
           this.output.push(28, (value >> 8) & 0xff, value & 0xff);
         } else { // fixed point
           value = (65536 * value) | 0;
@@ -358,7 +346,7 @@ var Type1CharString = (function Type1CharStringClosure() {
         this.stack.length = 0;
       }
       return false;
-    }
+    },
   };
 
   return Type1CharString;
@@ -483,7 +471,7 @@ var Type1Parser = (function Type1ParserClosure() {
       return token === 'true' ? 1 : 0;
     },
 
-    nextChar : function Type1_nextChar() {
+    nextChar: function Type1_nextChar() {
       return (this.currentChar = this.stream.getByte());
     },
 
@@ -519,6 +507,15 @@ var Type1Parser = (function Type1ParserClosure() {
       return token;
     },
 
+    readCharStrings: function Type1Parser_readCharStrings(bytes, lenIV) {
+      if (lenIV === -1) {
+        // This isn't in the spec, but Adobe's tx program handles -1
+        // as plain text.
+        return bytes;
+      }
+      return decrypt(bytes, CHAR_STRS_ENCRYPT_KEY, lenIV);
+    },
+
     /*
      * Returns an object containing a Subrs array and a CharStrings
      * array extracted from and eexec encrypted block of data
@@ -533,8 +530,8 @@ var Type1Parser = (function Type1ParserClosure() {
         subrs: [],
         charstrings: [],
         properties: {
-          'privateData': privateData
-        }
+          'privateData': privateData,
+        },
       };
       var token, length, data, lenIV, encoded;
       while ((token = this.getToken()) !== null) {
@@ -550,7 +547,7 @@ var Type1Parser = (function Type1ParserClosure() {
             this.getToken(); // read in 'dict'
             this.getToken(); // read in 'dup'
             this.getToken(); // read in 'begin'
-            while(true) {
+            while (true) {
               token = this.getToken();
               if (token === null || token === 'end') {
                 break;
@@ -564,7 +561,7 @@ var Type1Parser = (function Type1ParserClosure() {
               this.getToken(); // read in 'RD' or '-|'
               data = stream.makeSubStream(stream.pos, length);
               lenIV = program.properties.privateData['lenIV'];
-              encoded = decrypt(data.getBytes(), CHAR_STRS_ENCRYPT_KEY, lenIV);
+              encoded = this.readCharStrings(data.getBytes(), lenIV);
               // Skip past the required space and binary data.
               stream.skip(length);
               this.nextChar();
@@ -573,21 +570,21 @@ var Type1Parser = (function Type1ParserClosure() {
                 this.getToken(); // read in 'def'
               }
               charstrings.push({
-                glyph: glyph,
-                encoded: encoded
+                glyph,
+                encoded,
               });
             }
             break;
           case 'Subrs':
-            var num = this.readInt();
+            this.readInt(); // num
             this.getToken(); // read in 'array'
-            while ((token = this.getToken()) === 'dup') {
+            while (this.getToken() === 'dup') {
               var index = this.readInt();
               length = this.readInt();
               this.getToken(); // read in 'RD' or '-|'
               data = stream.makeSubStream(stream.pos, length);
               lenIV = program.properties.privateData['lenIV'];
-              encoded = decrypt(data.getBytes(), CHAR_STRS_ENCRYPT_KEY, lenIV);
+              encoded = this.readCharStrings(data.getBytes(), lenIV);
               // Skip past the required space and binary data.
               stream.skip(length);
               this.nextChar();
@@ -651,7 +648,7 @@ var Type1Parser = (function Type1ParserClosure() {
           charstring: output,
           width: charString.width,
           lsb: charString.lsb,
-          seac: charString.seac
+          seac: charString.seac,
         });
       }
 
@@ -705,17 +702,18 @@ var Type1Parser = (function Type1ParserClosure() {
           case 'FontBBox':
             var fontBBox = this.readNumberArray();
             // adjusting ascent/descent
-            properties.ascent = fontBBox[3];
-            properties.descent = fontBBox[1];
+            properties.ascent = Math.max(fontBBox[3], fontBBox[1]);
+            properties.descent = Math.min(fontBBox[1], fontBBox[3]);
             properties.ascentScaled = true;
             break;
         }
       }
-    }
+    },
   };
 
   return Type1Parser;
 })();
 
-exports.Type1Parser = Type1Parser;
-}));
+export {
+  Type1Parser,
+};

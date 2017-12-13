@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* globals chrome, CSS */
 
 'use strict';
 
@@ -41,7 +40,7 @@ function onAnimationStart(event) {
 // invocations have no effect.
 function watchObjectOrEmbed(elem) {
   var mimeType = elem.type;
-  if (mimeType && 'application/pdf' !== mimeType.toLowerCase()) {
+  if (mimeType && mimeType.toLowerCase() !== 'application/pdf') {
     return;
   }
   // <embed src> <object data>
@@ -104,7 +103,7 @@ function watchObjectOrEmbed(elem) {
     attributes: true,
     childList: false,
     characterData: false,
-    attributeFilter: [srcAttribute]
+    attributeFilter: [srcAttribute],
   });
 }
 

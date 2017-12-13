@@ -1,5 +1,3 @@
-/*jslint node: true */
-
 'use strict';
 
 var fs = require('fs');
@@ -62,13 +60,15 @@ function flatten(stats) {
         pdf: stat['pdf'],
         round: stat['round'],
         stat: s['name'],
-        time: s['end'] - s['start']
+        time: s['end'] - s['start'],
       });
     });
   });
   // Use only overall results if not grouped by 'stat'
   if (options.groupBy.indexOf('stat') < 0) {
-    rows = rows.filter(function(s) { return s.stat === 'Overall'; });
+    rows = rows.filter(function(s) {
+      return s.stat === 'Overall';
+    });
   }
   return rows;
 }
@@ -131,7 +131,9 @@ function stat(baseline, current) {
   }
   var i, row, rows = [];
   // collect rows and measure column widths
-  var width = labels.map(function(s) { return s.length; });
+  var width = labels.map(function(s) {
+    return s.length;
+  });
   rows.push(labels);
   for (var k = 0; k < keys.length; k++) {
     var key = keys[k];
@@ -159,7 +161,9 @@ function stat(baseline, current) {
   }
 
   // add horizontal line
-  var hline = width.map(function(w) { return new Array(w+1).join('-'); });
+  var hline = width.map(function(w) {
+    return new Array(w + 1).join('-');
+  });
   rows.splice(1, 0, hline);
 
   // print output
@@ -179,14 +183,14 @@ function main() {
   try {
     var baselineFile = fs.readFileSync(options.baseline).toString();
     baseline = flatten(JSON.parse(baselineFile));
-  } catch(e) {
+  } catch (e) {
     console.log('Error reading file "' + options.baseline + '": ' + e);
     process.exit(0);
   }
   try {
     var currentFile = fs.readFileSync(options.current).toString();
     current = flatten(JSON.parse(currentFile));
-  } catch(e) {
+  } catch (e) {
     console.log('Error reading file "' + options.current + '": ' + e);
     process.exit(0);
   }
